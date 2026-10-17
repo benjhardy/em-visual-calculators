@@ -1,5 +1,7 @@
 # Visual RF calculators
 
+Live: https://benjhardy.github.io/em-visual-calculators/ · part of [benjhardy.github.io](https://benjhardy.github.io/)
+
 RF and microwave calculators that show the physics, not just the number. Every input change redraws a live picture of the fields, currents or waves next to the result. Every page shows its method and checks itself against published values.
 
 Each calculator is **one self-contained HTML file** (vanilla JavaScript and canvas, no libraries). Open it from disk, host it anywhere, or read the source. The inputs are stored in the URL hash, so any state can be shared as a link. Light and dark themes, keyboard accessible, works at phone width.
