@@ -726,11 +726,12 @@ function selectMode(md) { st.type = md.type; st.m = md.m; st.n = md.n; update();
 function drawZ(t) {
   const { ctx, w, h } = fitCanvas(cvZ), C = Theme.c; ctx.clearRect(0, 0, w, h);
   const wt = 2 * Math.PI * 0.35 * t;
-  const lam = 299792458 / (st.f * Math.sqrt(st.er)), L = 3 * lam;
+  const lam = 299792458 / (st.f * Math.sqrt(st.er));
   const useX = st.m >= 1;                        // top view (x-z) with Ey normal; else side view (y-z) with Ex normal
   const T = useX ? st.a : st.b;
   const padL = 12, padR = 12, padT = 24, padB = 22, availW = w - padL - padR, availH = h - padT - padB;
-  const s = Math.min(availW / L, availH / T), Wd = L * s, Hd = T * s, x0 = padL, y0 = padT + (availH - Hd) / 2;
+  // true scale: the guide fills the height, the z window fills the width
+  const s = availH / T, L = availW / s, Wd = availW, Hd = availH, x0 = padL, y0 = padT;
   const y0f = st.n === 0 ? st.b / 2 : st.b / (4 * st.n), x0f = st.a / 2;
   const gam = P.propagating ? { a: 0, b: P.beta } : { a: P.alpha, b: 0 };
   // transverse samples of the complex amplitudes
@@ -763,7 +764,7 @@ function drawZ(t) {
   ctx.strokeStyle = C.metal; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x0, y0 - 2); ctx.lineTo(x0 + Wd, y0 - 2); ctx.moveTo(x0, y0 + Hd + 2); ctx.lineTo(x0 + Wd, y0 + Hd + 2); ctx.stroke();
   ctx.fillStyle = C.muted; ctx.font = `500 11px ${C.mono}`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   const plane = useX ? `top view · E${'y'} at y = ${st.n === 0 ? 'b/2' : 'b/' + 4 * st.n}` : `side view · Ex at x = a/2`;
-  ctx.fillText(w < 560 ? plane.replace(/^top view · |^side view · /, '') : `${plane} · ${st.type === 'TE' ? 'H' : 'E'} arrows · 3λ shown`, x0, 15);
+  ctx.fillText(w < 560 ? plane.replace(/^top view · |^side view · /, '') : `${plane} · ${st.type === 'TE' ? 'H' : 'E'} arrows · ${fmtLen(L)} of guide`, x0, 15);
   ctx.textAlign = 'right';
   ctx.fillText(P.propagating ? `λg = ${fmtLen(P.lambdaG)}` : `fades ${fmt(P.alpha * NP2DB / 1000, 3)} dB/mm`, x0 + Wd, 15);
   // lambda_g marks

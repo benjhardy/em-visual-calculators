@@ -831,7 +831,7 @@ function drawB(t) {
   const xb = showG ? left + lgTE / span * (right - left) : x1;
   ctx.beginPath(); ctx.moveTo(left, yb - 4); ctx.lineTo(left, yb); ctx.lineTo(xb, yb); ctx.lineTo(xb, yb - 4); ctx.stroke();
   ctx.fillText(showG ? 'λg (TE11) = ' + fmtLen(lgTE) : (st.mode === 'tem' ? 'λ = ' : 'λ (TEM) = ') + fmtLen(lam), (left + xb) / 2, yb + 13);
-  ctx.textAlign = 'left'; ctx.fillText(st.mode === 'tem' ? 'side view · E (arrows), H (⊙ ⊗)' : 'side view · TE11 Eφ, normal to this cut', left, 16);
+  ctx.textAlign = 'left'; if (st.mode === 'tem' || mid - hb - wall - 14 > 34) ctx.fillText(st.mode === 'tem' ? 'side view · E (arrows), H (⊙ ⊗)' : 'side view · TE11 Eφ, normal to this cut', left, 16);
 }
 
 // ---------- plots ----------
