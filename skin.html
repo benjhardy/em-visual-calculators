@@ -230,7 +230,7 @@ flat:  J(z) = J(0) · e^(−z/δ) · e^(−j z/δ)</div>
       <li>S. Ramo, J. R. Whinnery, T. Van Duzer, <i>Fields and Waves in Communication Electronics</i>, 3rd ed., Wiley, 1994, Sec. 5.5–5.6 (internal impedance of a round wire).</li>
       <li>M. Abramowitz, I. A. Stegun, <i>Handbook of Mathematical Functions</i>, NBS, 1964, §9.2 (asymptotic expansions) and §9.9 (Kelvin functions).</li>
       <li>F. E. Terman, <i>Radio Engineers' Handbook</i>, McGraw-Hill, 1943, Sec. 2 (skin-effect resistance ratio table).</li>
-      <li>Resistivities at 20 °C: annealed copper standard (IEC 60028, 1.7241 µΩ·cm); Ag, Au, Al from the CRC Handbook of Chemistry and Physics. Steel is illustrative: its µr depends strongly on field level and frequency.</li>
+      <li>Resistivities at 20 °C: annealed copper standard (IEC 60028, 1.7241 µΩ·cm); Ag 1.59, Au 2.21, Al 2.65 µΩ·cm from the CRC Handbook of Chemistry and Physics (293 K). Steel is illustrative: its µr depends strongly on field level and frequency.</li>
     </ol>
   </section>
 
@@ -445,6 +445,7 @@ const NP2DB = 20 / Math.LN10;
 const Units = {
   len: { mm: 1e-3, mil: 25.4e-6, um: 1e-6 },
   freq: { Hz: 1, kHz: 1e3, MHz: 1e6, GHz: 1e9 },
+  dist: { m: 1, km: 1e3 },
 };
 
 // ---------- URL hash state ----------
@@ -466,7 +467,7 @@ const num = (v, d) => { const x = parseFloat(v); return isFinite(x) ? x : d; };
 const Fields = [];
 function bindNumber(el, o) {
   const f = { el, ...o };
-  const factor = () => f.kind === 'len' ? Units.len[f.units()] : f.kind === 'freq' ? Units.freq[f.units()] : (f.scale || 1);
+  const factor = () => f.kind === 'len' ? Units.len[f.units()] : f.kind === 'freq' ? Units.freq[f.units()] : f.kind === 'dist' ? Units.dist[f.units()] : (f.scale || 1);
   f.show = () => { if (document.activeElement === el) return; const v = f.get() / factor(); el.value = isFinite(v) ? String(Number(v.toPrecision(f.sig || 5))) : ''; };
   el.addEventListener('input', () => {
     const v = parseFloat(el.value); if (!isFinite(v)) return;
@@ -587,7 +588,7 @@ const S = SkinCore, CX = S.cx;
 const MATS = {
   cu: { name: 'Copper', rho: 1.7241e-8, mur: 1 },
   ag: { name: 'Silver', rho: 1.59e-8, mur: 1 },
-  au: { name: 'Gold', rho: 2.44e-8, mur: 1 },
+  au: { name: 'Gold', rho: 2.21e-8, mur: 1 },
   al: { name: 'Aluminum', rho: 2.65e-8, mur: 1 },
   steel: { name: 'Steel', rho: 1.5e-7, mur: 100 },
 };
@@ -817,9 +818,9 @@ function update() {
   let cap;
   if (st.view === 'wire') {
     if (D.x < 0.5) cap = `δ is ${fmt(1 / D.x, 3)}× the radius. Current fills the wire almost evenly.`;
-    else if (D.x < 3) cap = `δ is comparable to the radius. Current starts to leave the center.`;
+    else if (D.x < 2) cap = `δ is comparable to the radius. Current starts to leave the center.`;
     else if (2 * D.a / D.delta * 1 > 400) cap = `δ is ${fmt(D.delta / D.a * 100, 2)}% of the radius: the skin is thinner than a pixel here. The flat view shows its depth profile.`;
-    else cap = `The current lives in a skin about ${fmtLen(D.delta)} deep. The center carries almost nothing, and lags in phase.`;
+    else { const c0 = CX.abs(S.currentRatio(D.x, 0)); cap = `The current lives in a skin about ${fmtLen(D.delta)} deep. The center carries ${c0 < 1e-3 ? 'under 0.1' : fmt(100 * c0, 2)}% of the surface density, and lags in phase.`; }
   } else cap = `|J| falls to 37% at one skin depth (${fmtLen(D.delta)}). The phase lags by one radian per δ, so the current wave travels into the metal.`;
   $('#caption').textContent = cap;
   cvA.setAttribute('aria-label', `Cross-section colored by current density. Skin depth ${fmtLen(D.delta)}, a over delta ${fmt(D.x, 3)}.`);

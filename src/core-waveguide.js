@@ -13,7 +13,8 @@ const WgCore = (() => {
   // list modes sorted by cutoff (up to fmax or count)
   function modeList(a, b, er = 1, count = 12) {
     const out = [];
-    for (let m = 0; m <= 6; m++) for (let n = 0; n <= 6; n++) for (const type of ['TE', 'TM']) {
+    const M = Math.max(6, Math.ceil(Math.sqrt(count)) + 2);
+    for (let m = 0; m <= M; m++) for (let n = 0; n <= M; n++) for (const type of ['TE', 'TM']) {
       if (!valid(type, m, n)) continue;
       out.push({ type, m, n, fc: fc(m, n, a, b, er), name: type + m + n });
     }

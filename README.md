@@ -16,7 +16,7 @@ Start at [index.html](index.html). The next calculators are listed in [ROADMAP.m
 
 ## How each one is verified
 
-The maths of each page lives in one `<script id="core">` block with no DOM access. The Node tests load that block **from the built HTML file**, so they check exactly the code the browser runs. Run them with `npm test` (Node 18+; no dependencies). 31 tests, all passing.
+The maths of each page lives in one `<script id="core">` block with no DOM access. The Node tests load that block **from the built HTML file**, so they check exactly the code the browser runs. Run them with `npm test` (Node 18+; no dependencies). 33 tests, all passing. An independent review of the physics is recorded in [AUDIT.md](AUDIT.md).
 
 **Skin effect.** R<sub>ac</sub>/R<sub>dc</sub> = Re{(ka/2) J0(ka)/J1(ka)} with k = (1 − j)/δ. J0 and J1 of complex argument use the power series up to |ka| = 25 and a scaled Hankel expansion above, so a/δ in the thousands does not overflow. Checks: an independent Kelvin-function route (ber/bei series, A&S Table 9.12 values reproduced to 1e-8), the classic table, and the asymptote a/2δ + 1/4 + 3δ/32a.
 
@@ -25,7 +25,7 @@ The maths of each page lives in one `<script id="core">` block with no DOM acces
 | this code | 1.0052 | 1.0782 | 1.3181 | 1.6779 | 2.0427 | 2.7432 | 3.7986 | 7.3277 |
 | table | 1.005 | 1.078 | 1.318 | 1.678 | 2.043 | 2.743 | 3.799 | 7.328 |
 
-**Coax.** Z0, αc (smooth walls), αd, exact TE11 cutoff (smallest root of J1′(x)Y1′(cx) − J1′(cx)Y1′(x) = 0), peak-field power limit. Checks: real Bessel J0, J1, Y0, Y1 against A&S to 2e-9; Z0 of RG-58/U (Belden 8240), RG-402 (M17/130), LMR-400, N, 7/16, 3.5 mm and 2.4 mm air lines; the optima 29.98, 59.96 and 76.65 Ω in air; αc equal to Wheeler's incremental-inductance rule; the TE11 root equal to an independent series solve to 1e-8. The common approximation kc ≈ 2/(a+b) is 1.6% low at b/a = 2 and 2.8% low at b/a = 3.6.
+**Coax.** Z0, αc (smooth walls), αd, exact TE11 cutoff (smallest root of J1′(x)Y1′(cx) − J1′(cx)Y1′(x) = 0), peak-field power limit. Checks: real Bessel J0, J1, Y0, Y1 against A&S to 2e-9; Z0 of RG-58/U (Belden 8240), RG-402 (M17/130; 49.1 Ω with εr 2.07 from its 69.5% velocity factor, inside the 50 ± 1 Ω spec), LMR-400, N, 7/16, 3.5 mm and 2.4 mm air lines; the optima 29.98, 59.96 and 76.65 Ω in air; αc equal to Wheeler's incremental-inductance rule; the TE11 root equal to an independent series solve to 1e-8. The common approximation kc ≈ 2/(a+b) is 1.6% low at b/a = 2 and 2.8% low at b/a = 3.6.
 
 **Microstrip.** Laplace's equation ∇·(ε∇φ) = 0 on the half cross-section, graded grid (finest cell 0.004·min(w/2, h) at the strip edge, box 40× the strip size), finite-volume 5-point stencil with the interface on a grid line, conjugate gradients with an IC(0) preconditioner. C and C0 come from the field energy; εeff = C/C0 and Z0 = 1/(c√(C·C0)). A drag uses the default grid (about 50–100 ms); 350 ms after you stop, a refined grid replaces it. Results for t = 0 (also reproducible with the "Run sweep" button on the page and `npm run table`):
 
@@ -52,17 +52,17 @@ The maths of each page lives in one `<script id="core">` block with no DOM acces
 | 12.9 | 3 | 22.54 | 22.49 | -0.22% | 22.52 | -0.11% | 0.07% |
 | 12.9 | 10 | 8.76 | 8.75 | -0.12% | 8.75 | -0.08% | 0.09% |
 
-The error falls with refinement (first order, as expected from the edge singularity of a zero-thickness strip) and H–J itself is quoted at better than 0.2% in this range, so the remaining gap is mostly discretization. With t/h = 0.05 the solve agrees with the H–J thickness correction to within 1.5%. The Hammerstad–Jensen code is also checked against Pozar's simpler closed form, and Kirschning–Jansen dispersion for its static limit and monotonic rise.
+The difference shrinks on the refined grid in every case, and H–J itself is quoted at about 0.2% (εeff) in this range, so the remaining gap is mostly discretization near the strip edge. With t/h = 0.05 the solve agrees with the H–J thickness correction to within 1.5%. The Hammerstad–Jensen code is also checked against Pozar's simpler closed form, and Kirschning–Jansen dispersion for its static limit and monotonic rise.
 
 **Rectangular waveguide.** Cutoff, β or α, λg, vp, vg, wave impedance, wall loss (TEm0, TE0n, TEmn, TMmn) and dielectric loss. Checks: Pozar Example 3.1 (fc of the first five modes, k, β, αd = 1.03 dB/m, αc = 0.434 dB/m, all within 0.4%; the book uses c = 3e8); WR-90/28/10 cutoffs; and every loss formula against a direct numerical integration of wall loss and transmitted power from the field expressions (agreement < 0.2%), which also validates the field amplitudes. Ey/Hx and Ex/Hy reproduce Z_TE and Z_TM.
 
-**Path loss and link budget.** FSPL, Friis, effective aperture, dish gain, power density, Fresnel radius, rain from ITU-R P.838-3. Checks: P.525's 32.45 + 20 log f[MHz] + 20 log d[km]; the P.838-3 coefficients reproduce its Table 5 (k within 0.3%, α within 0.002) at 12–80 GHz; Friis gain form equals the aperture form. Gas absorption is a user input (ITU-R P.676 is on the roadmap).
+**Path loss and link budget.** FSPL, Friis, effective aperture, dish gain, power density, Fresnel radius, rain from ITU-R P.838-3. Checks: P.525's 32.45 + 20 log f[MHz] + 20 log d[km]; the P.838-3 coefficients reproduce its Table 5 (k within 0.05%, α within 1e-4) at 12–80 GHz, and are not used outside 1–1000 GHz; Friis gain form equals the aperture form. Gas absorption is a user input (ITU-R P.676 is on the roadmap).
 
 ## Scope and limits
 
 - Skin effect: isolated straight round wire, no proximity effect. Steel μr is illustrative.
-- Coax: smooth conductors, same metal on both conductors, peak-field (not thermal) power limit.
-- Microstrip: quasi-static TEM, single strip, no conductor or dielectric loss, closed box far away.
+- Coax: smooth conductors, same metal on both conductors, peak-field (not thermal) power limit; the default 3 kV/mm is air.
+- Microstrip: quasi-static TEM, single strip, no conductor or dielectric loss, closed box far away. Kirschning–Jansen dispersion is flagged outside f·h ≤ 25 GHz·mm.
 - Waveguide: perfect geometry, perturbation-method wall loss, smooth walls.
 - Link budget: free space line of sight; no multipath; rain path reduction left to the user.
 

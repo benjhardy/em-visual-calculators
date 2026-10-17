@@ -143,6 +143,7 @@ footer.foot a { color: var(--muted); }
 .cmp .h { font: 600 0.62rem/1.3 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .cmp .k { font: 600 0.66rem/1.6 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .cmp .big { font-size: 1.3rem; font-weight: 600; }
+@media (max-width: 600px) { .cmp .big { font-size: 1.05rem; } }
 .synth { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
 </style>
 </head>
@@ -227,7 +228,7 @@ footer.foot a { color: var(--muted); }
 C  = 2 Σ g (Δφ)² · ε0            (field energy)
 C0 = same with εr = 1
 εeff = C / C0,   Z0 = 1 / (c √(C · C0))</div>
-        <p class="note">Quasi-static (TEM) model: valid while the substrate is thin compared with the wavelength. The closed forms are Hammerstad–Jensen 1980 (static Z0 and εeff, with their thickness correction) and Kirschning–Jansen 1982 (εeff dispersion).</p>
+        <p class="note">Quasi-static (TEM) model: valid while the substrate is thin compared with the wavelength. The closed forms are Hammerstad–Jensen 1980 (static Z0 and εeff, with their thickness correction) and Kirschning–Jansen 1982 (εeff dispersion, fitted for t = 0, valid to f·h = 25 GHz·mm, 0.1 ≤ w/h ≤ 100, εr ≤ 20; the shaded part of the plot is outside that range). With t &gt; 0 the thickness-corrected static εeff is used as its starting point.</p>
       </div>
       <div class="grp">
         <p class="lbl">Validation sweep · t = 0 · run in your browser</p>
@@ -429,7 +430,7 @@ const MsCore = (() => {
   function stripFlux(R) {
     const { grid: G, S, phi } = R, { x, y, iw, js0, js1 } = G, nx = x.length;
     const id = (i, j) => j * nx + i, out = [];
-    for (let i = 0; i <= iw; i++) { const p = id(i, js0), q = p - nx; out.push({ x: x[i], y: (y[js0] + y[js0 - 1]) / 2, q: S.gN[q] * (1 - phi[q]) * (i === 0 ? 1 : 1), dir: [0, -1] }); }
+    for (let i = 0; i <= iw; i++) { const p = id(i, js0), q = p - nx; out.push({ x: x[i], y: (y[js0] + y[js0 - 1]) / 2, q: S.gN[q] * (1 - phi[q]), dir: [0, -1] }); }
     for (let j = js0; j <= js1; j++) { const p = id(iw, j); out.push({ x: (x[iw] + x[iw + 1]) / 2, y: y[j], q: S.gE[p] * (1 - phi[p + 1]), dir: [1, 0] }); }
     for (let i = iw; i >= 0; i--) { const p = id(i, js1), q = p + nx; out.push({ x: x[i], y: (y[js1] + y[js1 + 1]) / 2, q: S.gN[p] * (1 - phi[q]), dir: [0, 1] }); }
     return out;
@@ -635,6 +636,7 @@ const NP2DB = 20 / Math.LN10;
 const Units = {
   len: { mm: 1e-3, mil: 25.4e-6, um: 1e-6 },
   freq: { Hz: 1, kHz: 1e3, MHz: 1e6, GHz: 1e9 },
+  dist: { m: 1, km: 1e3 },
 };
 
 // ---------- URL hash state ----------
@@ -656,7 +658,7 @@ const num = (v, d) => { const x = parseFloat(v); return isFinite(x) ? x : d; };
 const Fields = [];
 function bindNumber(el, o) {
   const f = { el, ...o };
-  const factor = () => f.kind === 'len' ? Units.len[f.units()] : f.kind === 'freq' ? Units.freq[f.units()] : (f.scale || 1);
+  const factor = () => f.kind === 'len' ? Units.len[f.units()] : f.kind === 'freq' ? Units.freq[f.units()] : f.kind === 'dist' ? Units.dist[f.units()] : (f.scale || 1);
   f.show = () => { if (document.activeElement === el) return; const v = f.get() / factor(); el.value = isFinite(v) ? String(Number(v.toPrecision(f.sig || 5))) : ''; };
   el.addEventListener('input', () => {
     const v = parseFloat(el.value); if (!isFinite(v)) return;
@@ -871,8 +873,7 @@ function buildGeometry() {
   const Q = cum[cum.length - 1], n = 13, lines = [];
   for (let k = 0; k < n; k++) {
     const target = (k + 0.5) / n * Q; let i = 0; while (i < F.length - 1 && cum[i + 1] < target) i++;
-    const A = F[i], B = F[Math.min(F.length - 1, i + 1)], tt = Math.max(0, Math.min(1, (target - cum[i]) / Math.max(1e-30, F[i].q)));
-    const sx = A.x + (B.x - A.x) * tt * 0, sy = A.y;          // stay at the midpoint of the edge that carries this flux
+    const A = F[i], sx = A.x, sy = A.y;                       // start at the midpoint of the grid edge that carries this flux
     const p = M.traceLine(R, sx + A.dir[0] * 1e-4, sy + A.dir[1] * 1e-4, { yTop: V.Y * 1.4, xMax: V.X * 1.4, maxLen: 30 });
     lines.push(p);
   }
@@ -969,12 +970,13 @@ function showResults() {
     const n = R.grid.x.length * R.grid.y.length;
     $('#status').innerHTML = `<span>grid <b>${R.grid.x.length} × ${R.grid.y.length}</b> (${R.q === 1 ? 'default' : 'refined'})</span><span>CG iterations <b>${R.it.join(' + ')}</b></span><span>solve <b>${Math.round(R.ms)} ms</b></span><span>${worker ? 'web worker' : 'main thread'}</span>`;
   }
-  $('#o-ek').textContent = fmt(ek, 4);
+  const fn = st.f / 1e9 * st.h * 1e3, outKJ = fn > 25 || st.er > 20 || st.w / st.h < 0.1;
+  $('#o-ek').innerHTML = fmt(ek, 4) + (outKJ ? ' <small>(outside K–J range)</small>' : '');
   $('#o-lg').textContent = fmtLen(299792458 / (st.f * Math.sqrt(ek)));
   $('#o-wh').textContent = fmt(st.w / st.h, 4);
   $('#o-vp').textContent = fmt(1 / Math.sqrt(ek), 3) + ' c';
   const C = Theme.c;
-  $('#legend').innerHTML = `<span><i style="color:${C.ink}"></i>equipotentials, 0.1 V steps</span><span><i style="color:${C.field}"></i>E lines, equal flux between lines</span>` + (st.layers.includes('map') ? `<span>|E|</span><span class="ramp" style="background:${rampCss('seq')}"></span>` : '');
+  $('#legend').innerHTML = `<span><i style="color:${C.ink}"></i>equipotentials, 0.1 V steps</span><span><i style="color:${C.field}"></i>E lines, equal D-flux (charge) between lines</span>` + (st.layers.includes('map') ? `<span>|E|</span><span class="ramp" style="background:${rampCss('seq')}"></span>` : '');
   cv.setAttribute('aria-label', `Microstrip cross-section, w ${fmtLen(st.w)}, h ${fmtLen(st.h)}, er ${st.er}. Field solve Z0 ${R ? fmt(R.z0, 4) : '...'} ohm.`);
 }
 
@@ -992,6 +994,7 @@ function drawPlots() {
   for (let i = 0; i <= 160; i++) { const f = f0 * Math.pow(f1 / f0, i / 160); e.push([f, M.eeffKJ(st.w, st.h, st.t, st.er, f)]); }
   const e0 = M.hj(st.w, st.h, st.t, st.er).eeff;
   drawPlot($('#pE'), { x: { min: f0, max: f1, log: true, label: 'frequency (Hz)', fmt: v => fmtSI(v, '').replace(' ', '') }, y: { min: Math.max(1, e0 - (st.er - e0) * 0.15), max: st.er * 1.02, label: 'εeff' },
+    bands: [{ x0: 25e9 / (st.h * 1e3), x1: f1, color: rgbStr(Theme.c.rgb.bad, 0.10), label: 'f·h > 25 GHz·mm' }],
     series: [{ pts: e, color: C.ink, width: 2.2 }], hlines: [{ y: st.er, color: C.muted }, { y: e0, color: C.hfield, dash: [2, 3] }],
     points: [{ x: st.f, y: M.eeffKJ(st.w, st.h, st.t, st.er, st.f), color: C.field, label: fmt(M.eeffKJ(st.w, st.h, st.t, st.er, st.f), 4) }].concat(R ? [{ x: f0 * 1.15, y: R.eeff, color: C.field, ring: true, label: 'field solve (static)' }] : []) });
   $('#lgE').innerHTML = `<span><i style="color:${C.ink}"></i>Kirschning–Jansen εeff(f)</span><span><i class="dash" style="color:${C.hfield}"></i>static H–J</span><span><i class="dash" style="color:${C.muted}"></i>εr</span>`;

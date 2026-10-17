@@ -35,14 +35,16 @@ const LinkCore = (() => {
     const alpha = (kH * aH + kV * aV + (kH * aH - kV * aV) * c) / (2 * k);
     return { kH, kV, aH, aV, k, alpha };
   }
-  const rainGamma = (fGHz, R, tiltDeg = 0, elevDeg = 0) => { const q = rainCoeffs(fGHz, tiltDeg, elevDeg); return q.k * Math.pow(R, q.alpha); };
+  // P.838-3 covers 1-1000 GHz; outside that the fit is not used (returns NaN)
+  const rainGamma = (fGHz, R, tiltDeg = 0, elevDeg = 0) => { if (fGHz < 1 || fGHz > 1000) return NaN; const q = rainCoeffs(fGHz, tiltDeg, elevDeg); return q.k * Math.pow(R, q.alpha); };
 
   // ---- link budget (dB domain) ----
   // o: {pt_dBm, ltx, gt, f, d, gas_dBkm, rainR, rainKm, tilt, elev, misc, gr, lrx, sens}
   function budget(o) {
     const fspl = fsplDb(o.d, o.f);
     const gas = (o.gas_dBkm || 0) * o.d / 1000;
-    const rain = o.rainR > 0 ? rainGamma(o.f / 1e9, o.rainR, o.tilt || 0, o.elev || 0) * Math.min(o.rainKm, o.d / 1000) : 0;
+    const g = o.rainR > 0 ? rainGamma(o.f / 1e9, o.rainR, o.tilt || 0, o.elev || 0) : 0, rainValid = isFinite(g);
+    const rain = rainValid ? g * Math.min(o.rainKm, o.d / 1000) : 0;
     const steps = [
       { k: 'pt', label: 'Tx power', v: o.pt_dBm, abs: true },
       { k: 'ltx', label: 'Tx line', v: -o.ltx },
@@ -56,7 +58,7 @@ const LinkCore = (() => {
     ];
     let lvl = 0; for (const s of steps) { s.from = s.abs ? 0 : lvl; lvl = s.abs ? s.v : lvl + s.v; s.to = lvl; }
     const eirp = o.pt_dBm - o.ltx + o.gt, pr = lvl;
-    return { steps, fspl, gas, rain, eirp, pr, margin: pr - o.sens };
+    return { steps, fspl, gas, rain, rainValid, eirp, pr, margin: pr - o.sens };
   }
 
   return { C0, ETA0, db, undb, fsplDb, friis, aperture, gainFromAperture, dishGain, density, eField, safeDistance, fresnel1, rainCoeffs, rainGamma, budget };

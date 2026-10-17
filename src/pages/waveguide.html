@@ -166,7 +166,8 @@ const cvX = $('#cvX'), cvM = $('#cvM'), cvZ = $('#cvZ');
 let offX = document.createElement('canvas'), offKey = '';
 function drawX(t) {
   const { ctx, w, h } = fitCanvas(cvX), C = Theme.c; ctx.clearRect(0, 0, w, h);
-  const wt = 2 * Math.PI * 0.35 * t, ph = Math.cos(wt);
+  // the contoured field (TE: Et, TM: Ht) carries a factor j at z = 0, so it goes as sin(wt); the arrows follow inst() exactly
+  const wt = 2 * Math.PI * 0.35 * t, ph = Math.sin(wt);
   const pad = 26, s = Math.min((w - 2 * pad) / st.a, (h - 2 * pad - 14) / st.b), W = st.a * s, Hh = st.b * s, x0 = (w - W) / 2, y0 = (h - Hh) / 2 + 6;
   const X = x => x0 + x / st.a * W, Y = y => y0 + Hh - y / st.b * Hh;
   // |E_t| map (static)
@@ -342,10 +343,10 @@ function fillCheck() {
     ['k (1/m)', p.k, 453.1], ['β (1/m)', p.beta, 345.1], ['αd (dB/m)', G.alphaD('TE', 1, 0, a, b, f, er, 4e-4) * NP2DB, 1.03], ['αc (dB/m)', G.alphaC('TE', 1, 0, a, b, f, rho, er) * NP2DB, 0.434],
   ];
   let s = '<thead><tr><th>Pozar Ex. 3.1</th><th>this page</th><th>book</th><th>Δ</th><th></th></tr></thead><tbody>';
-  for (const [k, v, r] of rows) { const d = v / r - 1, ok = Math.abs(d) < 0.006; s += `<tr><td>${k}</td><td>${fmt(v, 5)}</td><td>${r}</td><td>${fmt(100 * d, 2)}%</td><td class="${ok ? 'pass' : 'fail'}">${ok ? 'pass' : 'fail'}</td></tr>`; }
+  for (const [k, v, r] of rows) { const d = v / r - 1, ok = Math.abs(d) < 0.003; s += `<tr><td>${k}</td><td>${fmt(v, 5)}</td><td>${r}</td><td>${fmt(100 * d, 2)}%</td><td class="${ok ? 'pass' : 'fail'}">${ok ? 'pass' : 'fail'}</td></tr>`; }
   const w90 = G.fc(1, 0, 0.9 * IN, 0.4 * IN), w28 = G.fc(1, 0, 0.28 * IN, 0.14 * IN);
-  s += `<tr><td>WR-90 fc TE10 (GHz)</td><td>${fmt(w90 / 1e9, 5)}</td><td>6.557</td><td>${fmt(100 * (w90 / 6.557e9 - 1), 2)}%</td><td class="pass">pass</td></tr>`;
-  s += `<tr><td>WR-28 fc TE10 (GHz)</td><td>${fmt(w28 / 1e9, 5)}</td><td>21.08</td><td>${fmt(100 * (w28 / 21.08e9 - 1), 2)}%</td><td class="pass">pass</td></tr>`;
+  s += `<tr><td>WR-90 fc TE10 (GHz)</td><td>${fmt(w90 / 1e9, 5)}</td><td>6.557</td><td>${fmt(100 * (w90 / 6.557e9 - 1), 2)}%</td><td class="${Math.abs(w90 / 6.557e9 - 1) < 2e-4 ? 'pass' : 'fail'}">${Math.abs(w90 / 6.557e9 - 1) < 2e-4 ? 'pass' : 'fail'}</td></tr>`;
+  s += `<tr><td>WR-28 fc TE10 (GHz)</td><td>${fmt(w28 / 1e9, 5)}</td><td>21.08</td><td>${fmt(100 * (w28 / 21.08e9 - 1), 2)}%</td><td class="${Math.abs(w28 / 21.08e9 - 1) < 3e-4 ? 'pass' : 'fail'}">${Math.abs(w28 / 21.08e9 - 1) < 3e-4 ? 'pass' : 'fail'}</td></tr>`;
   $('#refTable').innerHTML = s + '</tbody><caption class="note" style="caption-side:bottom;text-align:left;padding-top:6px">Teflon-filled copper guide, a = 1.07 cm, b = 0.43 cm, εr = 2.08, tan δ = 0.0004, σ = 5.813e7 S/m, 15 GHz. The book uses c = 3e8 m/s, so expect ~0.1%.</caption>';
 }
 
@@ -392,9 +393,9 @@ function update() {
   $('#o-sm').textContent = `${fmt(P.single[0] / 1e9, 4)}–${fmt(P.single[1] / 1e9, 4)} GHz`;
   const C = Theme.c, te = st.type === 'TE';
   $('#legend').innerHTML = `<span><i style="color:${te ? C.field : C.hfield}"></i>${te ? 'E lines (Hz contours)' : 'H lines (Ez contours)'}</span><span><i style="color:${te ? C.hfield : C.field}"></i>${te ? 'H' : 'E'} arrows</span><span>|Et|</span><span class="ramp" style="background:${rampCss('seq')}"></span><span>side view</span><span class="ramp" style="background:${rampCss('div')}"></span>`;
-  const nProp = modes.filter(md => st.f > md.fc).length;
+  const nProp = G.modeList(st.a, st.b, st.er, 400).filter(md => st.f > md.fc).length;
   $('#caption').textContent = P.propagating
-    ? `${st.type}${st.m}${st.n} travels: λg = ${fmtLen(P.lambdaG)}, longer than the free-space ${fmtLen(P.lambda)}. ${nProp === 1 ? 'Only one mode can propagate.' : nProp + ' modes can propagate at this frequency.'}`
+    ? `${st.type}${st.m}${st.n} travels: λg = ${fmtLen(P.lambdaG)}, longer than ${st.er > 1 ? 'the wavelength in the filling' : 'the free-space wavelength'}, ${fmtLen(P.lambda)}. ${nProp === 1 ? 'Only one mode can propagate.' : nProp + ' modes can propagate at this frequency.'}`
     : `${st.type}${st.m}${st.n} is below cutoff. The field does not travel; it decays by ${fmt(P.alpha * NP2DB / 1000, 3)} dB per mm.`;
   cvX.setAttribute('aria-label', `${st.type}${st.m}${st.n} cross-section pattern, ${P.propagating ? 'propagating' : 'cut off'}`);
   drawX(Clock.t); drawM(); drawZ(Clock.t); drawPlots();

@@ -145,7 +145,7 @@ footer.foot a { color: var(--muted); }
   <header class="hero">
     <p class="eyebrow">Visual calculator 05 &middot; Propagation</p>
     <h1>Path loss and link budget</h1>
-    <p class="lede">Power spreads over a sphere. The receiver catches only its effective aperture. That aperture, not the air, is where the frequency dependence comes from.</p>
+    <p class="lede">Power spreads over a sphere. The receiver catches only its effective aperture. In free space, that aperture is where the frequency dependence comes from.</p>
   </header>
 
   <section class="calc" aria-label="Calculator">
@@ -226,7 +226,7 @@ Ae   = G λ² / 4π,   dish: G = η (π D / λ)²
 S    = EIRP / (4π d²),  E = √(S η0)
 r1   = √(λ d1 d2 / (d1 + d2))   first Fresnel zone
 rain: γ = k R^α  (ITU-R P.838-3), A = γ · path in rain
-Pr = Pt − Ltx + Gt − FSPL − Agas − Arain − Lother + Gr − Lrx</div>
+Pr = Pt − Ltx + Gt − FSPL − Arain − Agas + Gr − Lrx</div>
         <p class="note">Far field, line of sight, matched polarization, no multipath. Gas absorption is an input (take it from ITU-R P.676). Rain uses the P.838-3 coefficients with polarization tilt and elevation (eqs. 4–5); path reduction factors (P.530, P.618) are left to you through the "path in rain" length.</p>
       </div>
       <div class="grp">
@@ -283,14 +283,16 @@ const LinkCore = (() => {
     const alpha = (kH * aH + kV * aV + (kH * aH - kV * aV) * c) / (2 * k);
     return { kH, kV, aH, aV, k, alpha };
   }
-  const rainGamma = (fGHz, R, tiltDeg = 0, elevDeg = 0) => { const q = rainCoeffs(fGHz, tiltDeg, elevDeg); return q.k * Math.pow(R, q.alpha); };
+  // P.838-3 covers 1-1000 GHz; outside that the fit is not used (returns NaN)
+  const rainGamma = (fGHz, R, tiltDeg = 0, elevDeg = 0) => { if (fGHz < 1 || fGHz > 1000) return NaN; const q = rainCoeffs(fGHz, tiltDeg, elevDeg); return q.k * Math.pow(R, q.alpha); };
 
   // ---- link budget (dB domain) ----
   // o: {pt_dBm, ltx, gt, f, d, gas_dBkm, rainR, rainKm, tilt, elev, misc, gr, lrx, sens}
   function budget(o) {
     const fspl = fsplDb(o.d, o.f);
     const gas = (o.gas_dBkm || 0) * o.d / 1000;
-    const rain = o.rainR > 0 ? rainGamma(o.f / 1e9, o.rainR, o.tilt || 0, o.elev || 0) * Math.min(o.rainKm, o.d / 1000) : 0;
+    const g = o.rainR > 0 ? rainGamma(o.f / 1e9, o.rainR, o.tilt || 0, o.elev || 0) : 0, rainValid = isFinite(g);
+    const rain = rainValid ? g * Math.min(o.rainKm, o.d / 1000) : 0;
     const steps = [
       { k: 'pt', label: 'Tx power', v: o.pt_dBm, abs: true },
       { k: 'ltx', label: 'Tx line', v: -o.ltx },
@@ -304,7 +306,7 @@ const LinkCore = (() => {
     ];
     let lvl = 0; for (const s of steps) { s.from = s.abs ? 0 : lvl; lvl = s.abs ? s.v : lvl + s.v; s.to = lvl; }
     const eirp = o.pt_dBm - o.ltx + o.gt, pr = lvl;
-    return { steps, fspl, gas, rain, eirp, pr, margin: pr - o.sens };
+    return { steps, fspl, gas, rain, rainValid, eirp, pr, margin: pr - o.sens };
   }
 
   return { C0, ETA0, db, undb, fsplDb, friis, aperture, gainFromAperture, dishGain, density, eField, safeDistance, fresnel1, rainCoeffs, rainGamma, budget };
@@ -412,6 +414,7 @@ const NP2DB = 20 / Math.LN10;
 const Units = {
   len: { mm: 1e-3, mil: 25.4e-6, um: 1e-6 },
   freq: { Hz: 1, kHz: 1e3, MHz: 1e6, GHz: 1e9 },
+  dist: { m: 1, km: 1e3 },
 };
 
 // ---------- URL hash state ----------
@@ -433,7 +436,7 @@ const num = (v, d) => { const x = parseFloat(v); return isFinite(x) ? x : d; };
 const Fields = [];
 function bindNumber(el, o) {
   const f = { el, ...o };
-  const factor = () => f.kind === 'len' ? Units.len[f.units()] : f.kind === 'freq' ? Units.freq[f.units()] : (f.scale || 1);
+  const factor = () => f.kind === 'len' ? Units.len[f.units()] : f.kind === 'freq' ? Units.freq[f.units()] : f.kind === 'dist' ? Units.dist[f.units()] : (f.scale || 1);
   f.show = () => { if (document.activeElement === el) return; const v = f.get() / factor(); el.value = isFinite(v) ? String(Number(v.toPrecision(f.sig || 5))) : ''; };
   el.addEventListener('input', () => {
     const v = parseFloat(el.value); if (!isFinite(v)) return;
@@ -576,7 +579,7 @@ function derive() {
   B.steps.find(s => s.k === 'misc').label = 'Gases';
   B.steps = B.steps.filter(s => s.k !== 'gas');
   B.gr = gr; B.ae = L.aperture(L.undb(gr), st.f);
-  B.gamma = st.rr > 0 ? L.rainGamma(st.f / 1e9, st.rr, +st.pol, st.el) : 0;
+  B.gamma = st.rr > 0 ? L.rainGamma(st.f / 1e9, st.rr, +st.pol, st.el) : 0;   // NaN below 1 GHz (outside P.838-3)
   const eirpW = L.undb(B.eirp) / 1000;
   B.S = L.density(eirpW, st.d); B.E = L.eField(eirpW, st.d); B.r1 = L.fresnel1(st.d / 2, st.d / 2, st.f);
   B.frac = B.ae / (4 * Math.PI * st.d * st.d);
@@ -589,11 +592,10 @@ for (const [k, P] of Object.entries(PRESETS)) pc.insertAdjacentHTML('beforeend',
 $$('button', pc).forEach(b => b.addEventListener('click', () => { Object.assign(st, PRESETS[b.dataset.v], { p: b.dataset.v }); refDirty = true; st.du = st.d >= 1000 ? 'km' : 'm'; update(); }));
 Fields.push({ show: () => $$('button', pc).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === st.p))) });
 const cu = () => { st.p = 'custom'; };
-const DU = { m: 1, km: 1e3 };
 bindRange($('#fR'), { min: F_MIN, max: F_MAX, log: true, get: () => st.f, set: v => { st.f = v; cu(); }, text: v => fmtSI(v, 'Hz'), onchange: update });
 bindNumber($('#fN'), { kind: 'freq', units: () => st.fu, get: () => st.f, set: v => { st.f = v; cu(); }, min: F_MIN, max: F_MAX, onchange: update });
 bindRange($('#dR'), { min: D_MIN, max: D_MAX, log: true, get: () => st.d, set: v => { st.d = v; cu(); }, text: v => fmtSI(v, 'm'), onchange: update });
-bindNumber($('#dN'), { get: () => st.d / DU[st.du], set: v => { st.d = v * DU[st.du]; cu(); }, min: D_MIN / 1e3, max: D_MAX, onchange: update });
+bindNumber($('#dN'), { kind: 'dist', units: () => st.du, get: () => st.d, set: v => { st.d = v; cu(); }, min: D_MIN, max: D_MAX, onchange: update });
 const numF = (id, k, o = {}) => bindNumber($(id), Object.assign({ get: () => st[k], set: v => { st[k] = v; cu(); }, onchange: update }, o));
 numF('#ptN', 'pt', { min: -100, max: 100 }); numF('#gtN', 'gt', { min: -30, max: 80 }); numF('#ltN', 'ltx', { min: 0, max: 100 }); numF('#lrN', 'lrx', { min: 0, max: 100 });
 numF('#grN', 'gr', { min: -30, max: 80, onchange: () => { refDirty = true; update(); } }); numF('#dsN', 'ds', { min: 0.01, max: 100, onchange: () => { refDirty = true; update(); } }); numF('#etN', 'et', { min: 0.05, max: 1, onchange: () => { refDirty = true; update(); } }); numF('#snN', 'sens', { min: -200, max: 50 });
@@ -703,8 +705,8 @@ function fillCheck() {
   rows.push(['FSPL, 35 786 km, 12 GHz (dB)', L.fsplDb(35786e3, 12e9), 205.10, 0.01]);
   for (const [f, kH, aH, kV, aV] of [[12, 0.02386, 1.1825, 0.02455, 1.1216], [20, 0.09164, 1.0568, 0.09611, 0.9847], [30, 0.2403, 0.9485, 0.2291, 0.9129], [60, 0.8606, 0.7656, 0.8515, 0.7486], [80, 1.1704, 0.7115, 1.1668, 0.7021]]) {
     const q = L.rainCoeffs(f);
-    rows.push([`P.838 kH, ${f} GHz`, q.kH, kH, 0.003 * kH]); rows.push([`P.838 αH, ${f} GHz`, q.aH, aH, 0.002 * aH]);
-    rows.push([`P.838 kV, ${f} GHz`, q.kV, kV, 0.003 * kV]); rows.push([`P.838 αV, ${f} GHz`, q.aV, aV, 0.002 * aV]);
+    rows.push([`P.838 kH, ${f} GHz`, q.kH, kH, 5e-4 * kH]); rows.push([`P.838 αH, ${f} GHz`, q.aH, aH, 1e-4]);
+    rows.push([`P.838 kV, ${f} GHz`, q.kV, kV, 5e-4 * kV]); rows.push([`P.838 αV, ${f} GHz`, q.aV, aV, 1e-4]);
   }
   let s = '<thead><tr><th>case</th><th>this page</th><th>reference</th><th></th></tr></thead><tbody>';
   for (const [k, v, r, tol] of rows) { const ok = Math.abs(v - r) <= tol; s += `<tr><td>${k}</td><td>${fmt(v, 5)}</td><td>${r}</td><td class="${ok ? 'pass' : 'fail'}">${ok ? 'pass' : 'fail'}</td></tr>`; }
@@ -721,7 +723,7 @@ function update() {
   $('#o-mg').textContent = `${B.margin >= 0 ? '+' : ''}${fmt(B.margin, 3)} dB`; $('#o-mg').style.color = B.margin >= 0 ? 'var(--ok)' : 'var(--bad)';
   $('#o-eirp').textContent = fmt(B.eirp, 4) + ' dBm';
   $('#o-gr').textContent = `${fmt(B.gr, 4)} dBi · ${fmtSI(B.ae, 'm²', 3)}`;
-  $('#o-rain').textContent = st.rr > 0 ? `${fmt(B.gamma, 3)} dB/km · ${fmt(B.rain, 3)} dB` : '—';
+  $('#o-rain').textContent = st.rr > 0 ? (B.rainValid ? `${fmt(B.gamma, 3)} dB/km · ${fmt(B.rain, 3)} dB` : 'n/a below 1 GHz') : '—';
   $('#o-s').textContent = fmtSI(B.S, 'W/m²', 3);
   $('#o-e').textContent = fmtSI(B.E, 'V/m', 3);
   $('#o-r1').textContent = fmtSI(B.r1, 'm', 3);

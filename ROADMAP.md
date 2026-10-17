@@ -27,7 +27,7 @@ Difficulty: **1** closed form + simple drawing · **2** closed form + field pict
 | Wire over ground / twin lead | field lines from a line charge and its image | image theory, Z0 = (η/2π) acosh(h/a) | 1 |
 | Twisted pair / differential | odd-mode field, common-mode leakage | two-wire acosh form, Wadell, *Transmission Line Design Handbook* (1991) | 2 |
 | Surface roughness | current path over a rough profile; loss multiplier vs frequency | Hammerstad & Bekkadal 1975 (arctan model); Huray et al. 2010 (snowball, Proc. IEEE EMC); Groiss 1996 | 2 |
-| Dielectric loss | loss tangent as phase lag of polarization; αd vs f for common laminates | αd = (π f √εeff / c) tanδ · filling factor; Djordjevic–Sarkar wideband model (2001) | 1–2 |
+| Dielectric loss | loss tangent as phase lag of polarization; αd vs f for common laminates | microstrip: αd = (π f / c) · εr (εeff − 1) tanδ / (√εeff (εr − 1)) (Pozar §3.8); Djordjevic–Sarkar wideband model (2001) | 1–2 |
 | Line loss budget (conductor + dielectric + roughness) | stacked loss contributions vs frequency | combine 01 + roughness + dielectric | 2 |
 
 ## Waveguides and resonators

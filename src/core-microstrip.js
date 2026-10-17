@@ -179,7 +179,7 @@ const MsCore = (() => {
   function stripFlux(R) {
     const { grid: G, S, phi } = R, { x, y, iw, js0, js1 } = G, nx = x.length;
     const id = (i, j) => j * nx + i, out = [];
-    for (let i = 0; i <= iw; i++) { const p = id(i, js0), q = p - nx; out.push({ x: x[i], y: (y[js0] + y[js0 - 1]) / 2, q: S.gN[q] * (1 - phi[q]) * (i === 0 ? 1 : 1), dir: [0, -1] }); }
+    for (let i = 0; i <= iw; i++) { const p = id(i, js0), q = p - nx; out.push({ x: x[i], y: (y[js0] + y[js0 - 1]) / 2, q: S.gN[q] * (1 - phi[q]), dir: [0, -1] }); }
     for (let j = js0; j <= js1; j++) { const p = id(iw, j); out.push({ x: (x[iw] + x[iw + 1]) / 2, y: y[j], q: S.gE[p] * (1 - phi[p + 1]), dir: [1, 0] }); }
     for (let i = iw; i >= 0; i--) { const p = id(i, js1), q = p + nx; out.push({ x: x[i], y: (y[js1] + y[js1 + 1]) / 2, q: S.gN[p] * (1 - phi[q]), dir: [0, 1] }); }
     return out;

@@ -33,11 +33,17 @@ test('ITU-R P.838-3 coefficients reproduce Table 5', () => {
     [40, 0.4431, 0.8673, 0.4274, 0.8421], [60, 0.8606, 0.7656, 0.8515, 0.7486], [80, 1.1704, 0.7115, 1.1668, 0.7021]];
   for (const [f, kH, aH, kV, aV] of T5) {
     const q = L.rainCoeffs(f);
-    assert.ok(rel(q.kH, kH) < 3e-3 && rel(q.kV, kV) < 3e-3, `k at ${f}: ${q.kH} ${q.kV}`);
-    assert.ok(Math.abs(q.aH - aH) < 2e-3 && Math.abs(q.aV - aV) < 2e-3, `alpha at ${f}: ${q.aH} ${q.aV}`);
+    assert.ok(rel(q.kH, kH) < 5e-4 && rel(q.kV, kV) < 5e-4, `k at ${f}: ${q.kH} ${q.kV}`);
+    assert.ok(Math.abs(q.aH - aH) < 1e-4 && Math.abs(q.aV - aV) < 1e-4, `alpha at ${f}: ${q.aH} ${q.aV}`);
   }
   const c = L.rainCoeffs(20, 45, 0), h = L.rainCoeffs(20);           // circular (tau = 45 deg): k = (kH + kV)/2
   assert.ok(rel(c.k, (h.kH + h.kV) / 2) < 1e-12);
+});
+
+test('rain model is not extrapolated outside 1-1000 GHz', () => {
+  assert.ok(Number.isNaN(L.rainGamma(0.5, 25)));
+  const B = L.budget({ pt_dBm: 0, ltx: 0, gt: 0, f: 0.5e9, d: 1e3, rainR: 50, rainKm: 1, misc: 0, gr: 0, lrx: 0, sens: -100 });
+  assert.ok(B.rain === 0 && B.rainValid === false);
 });
 
 test('link budget arithmetic', () => {

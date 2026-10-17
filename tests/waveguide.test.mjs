@@ -4,14 +4,14 @@ import { loadCore, rel } from './load.mjs';
 const G = loadCore('waveguide.html', 'WgCore');
 const IN = 25.4e-3;
 
-test('Pozar Example 3.1 (Teflon-filled K-band guide, 15 GHz) within 0.5% (book uses c = 3e8)', () => {
+test('Pozar Example 3.1 (Teflon-filled K-band guide, 15 GHz) within 0.3% (book uses c = 3e8)', () => {
   const a = 1.07e-2, b = 0.43e-2, er = 2.08, f = 15e9;
   const fc = (m, n) => G.fc(m, n, a, b, er) / 1e9;
-  assert.ok(rel(fc(1, 0), 9.72) < 0.005 && rel(fc(2, 0), 19.44) < 0.005 && rel(fc(0, 1), 24.19) < 0.005 && rel(fc(1, 1), 26.07) < 0.005 && rel(fc(3, 0), 29.16) < 0.005);
+  assert.ok(rel(fc(1, 0), 9.72) < 0.003 && rel(fc(2, 0), 19.44) < 0.003 && rel(fc(0, 1), 24.19) < 0.003 && rel(fc(1, 1), 26.07) < 0.003 && rel(fc(3, 0), 29.16) < 0.003);
   const p = G.prop('TE', 1, 0, a, b, f, er);
-  assert.ok(rel(p.k, 453.1) < 0.005 && rel(p.beta, 345.1) < 0.005);
-  assert.ok(rel(G.alphaD('TE', 1, 0, a, b, f, er, 4e-4) * G.NP2DB, 1.03) < 0.005);
-  assert.ok(rel(G.alphaC('TE', 1, 0, a, b, f, 1 / 5.813e7, er) * G.NP2DB, 0.434) < 0.005);
+  assert.ok(rel(p.k, 453.1) < 0.003 && rel(p.beta, 345.1) < 0.003);
+  assert.ok(rel(G.alphaD('TE', 1, 0, a, b, f, er, 4e-4) * G.NP2DB, 1.03) < 0.004);   // book rounds to 1.03
+  assert.ok(rel(G.alphaC('TE', 1, 0, a, b, f, 1 / 5.813e7, er) * G.NP2DB, 0.434) < 0.003);
   assert.equal(G.modeList(a, b, er, 6).map(m => m.name).slice(0, 3).join(','), 'TE10,TE20,TE01');
 });
 
@@ -55,6 +55,11 @@ test('attenuation formulas (TEm0, TE0n, TEmn, TMmn) agree with direct power-loss
     const an = alphaNumeric(type, m, n, a, b, f, rho, 1), af = G.alphaC(type, m, n, a, b, f, rho, 1);
     assert.ok(rel(af, an) < 2e-3, `${type}${m}${n}: formula ${af} vs numeric ${an}`);
   }
+});
+
+test('mode counting is not capped for near-square guides', () => {
+  const a = 10e-3, b = 9e-3, f = 4 * G.fc(1, 0, a, b), n = G.modeList(a, b, 1, 400).filter(m => f > m.fc).length;
+  assert.ok(n > 10, `only ${n} modes`);
 });
 
 test('field amplitudes give the right wave impedance and dispersion identities', () => {

@@ -97,7 +97,7 @@ Pmax = (Ebd · a · ln(b/a))² / (2 Z0)   (peak, matched)
 TE11: J1′(x) Y1′(cx) − J1′(cx) Y1′(x) = 0,
       x = kc·a, c = b/a  (smallest root)
       approx. kc ≈ 2/(a+b)</div>
-        <p class="note">Conductor loss uses a smooth surface (no roughness) and the same metal for both conductors. Power is the peak-field limit only, not the thermal (average-power) limit.</p>
+        <p class="note">Conductor loss uses a smooth surface (no roughness) and the same metal for both conductors. Power is the peak-field limit only, not the thermal (average-power) limit. The default breakdown field, 3 kV/mm, is air at sea level; for filled cables treat it as a conservative air-gap figure.</p>
       </div>
       <div class="grp">
         <p class="lbl">Reference values</p>
@@ -324,13 +324,17 @@ function drawB(t) {
     // TE11 along z: propagating or evanescent amplitude
     const prop = st.f > R.fcE, kz = prop ? 2 * Math.PI * st.f * Math.sqrt(st.er) / 2.998e8 * Math.sqrt(1 - (R.fcE / st.f) ** 2) : 0;
     const alpha = prop ? 0 : 2 * Math.PI * R.fcE * Math.sqrt(st.er) / 2.998e8 * Math.sqrt(1 - (st.f / R.fcE) ** 2);
+    // axial cut at phi = 0 (top) and phi = pi (bottom): E_phi ~ -dHz/dr cos(phi), normal to the plane
+    let dmx = 1e-30; for (const v of te11Lut.dR) dmx = Math.max(dmx, Math.abs(v));
     for (let X = left; X < right; X += 2) {
       const z = zOf(X), env = Math.exp(-alpha * z), v = env * Math.cos(wt - kz * z);
       for (let Y = mid - hb; Y < mid + hb; Y += 2) {
         const yy = (mid - Y) / hb; if (Math.abs(yy) < 1 / R.x) continue;
-        ctx.fillStyle = rgbStr(divRgb(v * (1 - Math.abs(yy)) * 1.6)); ctx.fillRect(X, Y, 2.2, 2.2);
+        const r = Math.abs(yy) * R.b, ePhi = -te11At(r)[1] / dmx * (yy > 0 ? 1 : -1);
+        ctx.fillStyle = rgbStr(divRgb(v * ePhi)); ctx.fillRect(X, Y, 2.2, 2.2);
       }
     }
+    var lgTE = prop ? 2 * Math.PI / kz : 0;
     ctx.fillStyle = C.ink; ctx.font = `600 12px ${C.body}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(prop ? 'TE11 propagates: the line is no longer single-mode' : `TE11 is cut off: it decays ${fmt(alpha * NP2DB / 1000, 3)} dB/mm`, (left + right) / 2, mid - hb - wall - 14);
   }
@@ -343,9 +347,11 @@ function drawB(t) {
   // wavelength brace
   ctx.fillStyle = C.muted; ctx.strokeStyle = C.muted; ctx.font = `500 11px ${C.mono}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   const yb = mid + hb + wall + 16; const x1 = left + (right - left) / 2;
-  ctx.beginPath(); ctx.moveTo(left, yb - 4); ctx.lineTo(left, yb); ctx.lineTo(x1, yb); ctx.lineTo(x1, yb - 4); ctx.stroke();
-  ctx.fillText('λ = ' + fmtLen(lam), (left + x1) / 2, yb + 13);
-  ctx.textAlign = 'left'; ctx.fillText(st.mode === 'tem' ? 'side view · E (arrows), H (⊙ ⊗)' : 'side view · TE11 amplitude', left, 16);
+  const showG = st.mode === 'te11' && typeof lgTE !== 'undefined' && lgTE > 0 && lgTE < span;
+  const xb = showG ? left + lgTE / span * (right - left) : x1;
+  ctx.beginPath(); ctx.moveTo(left, yb - 4); ctx.lineTo(left, yb); ctx.lineTo(xb, yb); ctx.lineTo(xb, yb - 4); ctx.stroke();
+  ctx.fillText(showG ? 'λg (TE11) = ' + fmtLen(lgTE) : (st.mode === 'tem' ? 'λ = ' : 'λ (TEM) = ') + fmtLen(lam), (left + xb) / 2, yb + 13);
+  ctx.textAlign = 'left'; ctx.fillText(st.mode === 'tem' ? 'side view · E (arrows), H (⊙ ⊗)' : 'side view · TE11 Eφ, normal to this cut', left, 16);
 }
 
 // ---------- plots ----------
