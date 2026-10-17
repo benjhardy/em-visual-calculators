@@ -1,0 +1,1058 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Public+Sans:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* ---- shared tokens and layout (identical block in every calculator; edit src/common.css and rebuild) ---- */
+:root {
+  --bg: #F1F4F7; --surface: #FFFFFF; --ink: #142230; --muted: #586678; --line: #D5DCE5; --grid: #E4E9EF;
+  --field: #D9472B; --hfield: #2B6CB0; --ok: #2A7F50; --bad: #C0392B; --warn: #B85A0B; --accent: #2160A8;
+  --metal: #B87333; --metal-hi: #D9A066; --diel: #E2EBF4; --diel-edge: #B9CADC;
+  --seq0: #FFFFFF; --seq1: #F6C890; --seq2: #E0602F; --seq3: #7A1B2E;
+  --display: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
+  --body: "Public Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D131A; --surface: #141C26; --ink: #E3E9EF; --muted: #98A4B2; --line: #2A3644; --grid: #1F2B39;
+    --field: #FF8A5C; --hfield: #6FB0F0; --ok: #6BCB93; --bad: #FF8A80; --warn: #F0A050; --accent: #6FA8EA;
+    --metal: #C98A52; --metal-hi: #E8B27C; --diel: #1A2735; --diel-edge: #34485E;
+    --seq0: #141C26; --seq1: #5E1F3C; --seq2: #D9472B; --seq3: #FFD98A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D131A; --surface: #141C26; --ink: #E3E9EF; --muted: #98A4B2; --line: #2A3644; --grid: #1F2B39;
+  --field: #FF8A5C; --hfield: #6FB0F0; --ok: #6BCB93; --bad: #FF8A80; --warn: #F0A050; --accent: #6FA8EA;
+  --metal: #C98A52; --metal-hi: #E8B27C; --diel: #1A2735; --diel-edge: #34485E;
+  --seq0: #141C26; --seq1: #5E1F3C; --seq2: #D9472B; --seq3: #FFD98A;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.55 var(--body); margin: 0; overflow-x: hidden; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.08; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(2rem, 4.6vw, 3rem); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: clamp(1.3rem, 2.6vw, 1.6rem); font-weight: 800; letter-spacing: -0.01em; }
+h3 { font-size: 1.05rem; font-weight: 600; }
+p { margin: 0; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+button { font-family: var(--body); }
+[hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.eyebrow { font: 600 0.72rem/1.2 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 1.05rem; color: var(--muted); max-width: 64ch; }
+.note { font-size: 0.86rem; color: var(--muted); }
+
+.topbar { max-width: 1240px; margin: 0 auto; padding: 14px 20px 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.topbar a.home { font: 600 0.78rem/1 var(--mono); letter-spacing: 0.06em; color: var(--muted); text-decoration: none; padding: 8px 0; }
+.topbar a.home:hover { color: var(--ink); }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 12px 20px 56px; display: grid; gap: 24px; }
+.hero { display: grid; gap: 8px; }
+
+.calc { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 980px) { .calc { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
+.pad { padding: 16px 18px; display: grid; gap: 12px; align-content: start; }
+.vbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.stage { position: relative; width: 100%; }
+.stage canvas { display: block; width: 100%; height: 100%; }
+.stage .tag { position: absolute; left: 12px; top: 10px; font: 600 0.72rem/1.3 var(--mono); color: var(--muted); pointer-events: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 10px 12px; border-top: 1px solid var(--line); font: 500 0.78rem/1.3 var(--mono); color: var(--muted); align-items: center; }
+.legend i { display: inline-block; width: 16px; height: 0; border-top: 2.5px solid currentColor; vertical-align: middle; margin-right: 5px; }
+.legend i.dash { border-top-style: dashed; }
+.legend i.box { width: 12px; height: 12px; border: 0; border-radius: 2px; vertical-align: -2px; }
+.legend .ramp { display: inline-block; width: 64px; height: 10px; border-radius: 2px; vertical-align: -1px; margin: 0 5px; }
+.caption { padding: 10px 12px 12px; font-size: 0.9rem; border-top: 1px solid var(--line); color: var(--ink); }
+
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: 600 0.8rem/1 var(--body); padding: 9px 11px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.btn { font: 600 0.84rem/1 var(--body); padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.btn[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chips button { font: 500 0.8rem/1 var(--body); padding: 8px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.chips button:hover { border-color: var(--ink); }
+.chips button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+.grp { display: grid; gap: 10px; }
+.grp + .grp { border-top: 1px solid var(--line); padding-top: 12px; }
+.lbl { font: 600 0.68rem/1.2 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field > label, .field > .lbl { font: 600 0.68rem/1.2 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.field label .u { text-transform: none; letter-spacing: 0; }
+.slide { display: grid; grid-template-columns: minmax(0, 1fr) 92px; gap: 8px; align-items: center; }
+input[type=range] { width: 100%; accent-color: var(--ink); margin: 0; min-width: 0; height: 28px; }
+input[type=number], select { font: 400 0.92rem/1.2 var(--mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 8px; width: 100%; min-width: 0; }
+input[type=number]:invalid { border-color: var(--bad); }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+
+.readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; }
+.readout div { background: var(--bg); border-radius: 8px; padding: 8px 10px; min-width: 0; }
+.readout span { display: block; font: 600 0.62rem/1.25 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.readout b { display: block; font: 600 1rem/1.3 var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.readout .big { grid-column: 1 / -1; }
+.readout .big b { font-size: 1.5rem; }
+.readout small { font: 500 0.72rem/1.3 var(--mono); color: var(--muted); }
+
+.plots { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 18px; }
+.plot { display: grid; }
+.plot h3 { padding: 12px 14px 0; }
+.plot .sub { padding: 2px 14px 0; font-size: 0.84rem; color: var(--muted); }
+.plot canvas { display: block; width: 100%; aspect-ratio: 16 / 10; }
+
+.check { display: grid; gap: 12px; }
+.check .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 18px; align-items: start; }
+.eq { font: 500 0.84rem/1.6 var(--mono); background: var(--bg); border-radius: 8px; padding: 10px 12px; overflow-x: auto; white-space: pre; }
+table.ref { border-collapse: collapse; width: 100%; font: 500 0.8rem/1.35 var(--mono); font-variant-numeric: tabular-nums; }
+table.ref th, table.ref td { text-align: right; padding: 5px 6px; border-bottom: 1px solid var(--line); }
+table.ref th:first-child, table.ref td:first-child { text-align: left; }
+table.ref thead th { font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.tblwrap { overflow-x: auto; }
+.pass { color: var(--ok); font-weight: 700; } .fail { color: var(--bad); font-weight: 700; }
+.refs { margin: 0; padding-left: 18px; font-size: 0.84rem; color: var(--muted); display: grid; gap: 4px; }
+footer.foot { border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.84rem; color: var(--muted); }
+footer.foot a { color: var(--muted); }
+@media (max-width: 600px) {
+  .topbar { padding-inline: 16px; }
+  .wrap { padding-inline: 16px; gap: 20px; }
+  .pad { padding: 14px; }
+  .slide { grid-template-columns: minmax(0, 1fr) 84px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<title>Microstrip Field Solver</title>
+<meta name="description" content="A live 2-D finite-difference field solve of a microstrip cross-section, next to the Hammerstad-Jensen closed form, with dispersion and synthesis.">
+<style>
+#cv { aspect-ratio: 16 / 9; }
+@media (max-width: 640px) { #cv { aspect-ratio: 1 / 0.95; } }
+.status { font: 500 0.76rem/1.3 var(--mono); color: var(--muted); padding: 8px 12px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.status b { color: var(--ink); font-weight: 600; }
+.cmp { display: grid; grid-template-columns: auto 1fr 1fr 0.8fr; gap: 0; font: 500 0.86rem/1.3 var(--mono); font-variant-numeric: tabular-nums; background: var(--bg); border-radius: 8px; overflow: hidden; }
+.cmp > div { padding: 7px 9px; border-bottom: 1px solid var(--line); }
+.cmp .h { font: 600 0.62rem/1.3 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.cmp .k { font: 600 0.66rem/1.6 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.cmp .big { font-size: 1.3rem; font-weight: 600; }
+.synth { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="index.html">&larr; Visual calculators</a><button class="btn" id="themeBtn" type="button">Dark</button></div>
+<main class="wrap">
+  <header class="hero">
+    <p class="eyebrow">Visual calculator 03 &middot; Planar lines</p>
+    <h1>Microstrip, solved live</h1>
+    <p class="lede">Your browser solves Laplace's equation on the cross-section every time you move a slider. The capacitance with and without the substrate gives εeff and Z0.</p>
+  </header>
+
+  <section class="calc" aria-label="Calculator">
+    <div class="card">
+      <div class="vbar">
+        <div class="chips" id="layers" role="group" aria-label="Layers">
+          <button type="button" data-v="eq">Equipotentials</button><button type="button" data-v="el">E lines</button><button type="button" data-v="map">|E| color</button><button type="button" data-v="mesh">Mesh</button>
+        </div>
+      </div>
+      <div class="stage"><canvas id="cv" role="img" aria-label="Microstrip cross-section with equipotentials and field lines"></canvas></div>
+      <div class="status" id="status" aria-live="polite"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="card pad">
+      <div class="cmp" id="cmp"></div>
+      <div class="grp">
+        <div class="lbl" id="subLbl">Substrate</div>
+        <div class="chips" id="subChips" role="group" aria-labelledby="subLbl"></div>
+        <div class="two">
+          <div class="field"><label for="erN">εr</label><input type="number" id="erN" step="any" min="1" max="30"></div>
+          <div class="field"><label for="hN">Height h <span class="u lu"></span></label><input type="number" id="hN" step="any"></div>
+        </div>
+      </div>
+      <div class="grp">
+        <div class="field"><label for="wN">Strip width w <span class="u lu"></span></label>
+          <div class="slide"><input type="range" id="wR" aria-label="Width slider"><input type="number" id="wN" step="any"></div></div>
+        <div class="two">
+          <div class="field"><label for="tN">Thickness t <span class="u lu"></span></label><input type="number" id="tN" step="any" min="0"></div>
+          <div class="field"><span class="lbl">Units</span><div class="seg" id="luSeg" role="group" aria-label="Length unit"><button type="button" data-v="mm">mm</button><button type="button" data-v="mil">mil</button></div></div>
+        </div>
+        <div class="synth">
+          <div class="field"><label for="ztN">Synthesis: target Z0 <span class="u">Ω</span></label><input type="number" id="ztN" step="any" min="10" max="200" value="50"></div>
+          <button class="btn" id="synthBtn" type="button">Find width</button>
+        </div>
+        <p class="note" id="synthOut" aria-live="polite"></p>
+      </div>
+      <div class="grp">
+        <div class="field"><label for="fN">Frequency (dispersion) <span class="u">GHz</span></label>
+          <div class="slide"><input type="range" id="fR" aria-label="Frequency slider"><input type="number" id="fN" step="any"></div></div>
+      </div>
+      <div class="readout" id="out"></div>
+    </div>
+  </section>
+
+  <section class="plots" aria-label="Plots">
+    <div class="card plot">
+      <h3>Z0 vs width: field solve against closed form</h3>
+      <p class="sub">Line: Hammerstad–Jensen. Dots: every finite-difference solve you have run at this εr and t/h.</p>
+      <canvas id="pZ" role="img" aria-label="Z0 versus w over h"></canvas>
+      <div class="legend" id="lgZ"></div>
+    </div>
+    <div class="card plot">
+      <h3>εeff vs frequency</h3>
+      <p class="sub">Kirschning–Jansen dispersion: the field pulls into the substrate as frequency rises.</p>
+      <canvas id="pE" role="img" aria-label="Effective permittivity versus frequency"></canvas>
+      <div class="legend" id="lgE"></div>
+    </div>
+  </section>
+
+  <section class="card pad check" id="check" aria-labelledby="chkH">
+    <h2 id="chkH">Check</h2>
+    <div class="cols">
+      <div class="grp">
+        <p class="lbl">Method</p>
+<div class="eq">∇·(ε ∇φ) = 0 on the cross-section
+  strip φ = 1 V, ground and far box φ = 0
+  half domain, symmetry wall at x = 0
+  graded grid, finest cell 0.004·min(w/2, h) at the edge
+  finite-volume 5-point stencil, interface on a grid line
+  conjugate gradients + IC(0) preconditioner
+C  = 2 Σ g (Δφ)² · ε0            (field energy)
+C0 = same with εr = 1
+εeff = C / C0,   Z0 = 1 / (c √(C · C0))</div>
+        <p class="note">Quasi-static (TEM) model: valid while the substrate is thin compared with the wavelength. The closed forms are Hammerstad–Jensen 1980 (static Z0 and εeff, with their thickness correction) and Kirschning–Jansen 1982 (εeff dispersion).</p>
+      </div>
+      <div class="grp">
+        <p class="lbl">Validation sweep · t = 0 · run in your browser</p>
+        <div class="row"><button class="btn" id="valBtn" type="button">Run sweep</button><span class="note" id="valNote">20 field solves, default and refined grids.</span></div>
+        <div class="tblwrap"><table class="ref" id="valTable"></table></div>
+      </div>
+    </div>
+    <ol class="refs">
+      <li>E. Hammerstad, Ø. Jensen, "Accurate models for microstrip computer-aided design," IEEE MTT-S Int. Microwave Symp. Digest, 1980, pp. 407–409.</li>
+      <li>M. Kirschning, R. H. Jansen, "Accurate model for effective dielectric constant of microstrip with validity up to millimetre-wave frequencies," Electronics Letters 18(6), 1982, pp. 272–273.</li>
+      <li>M. N. O. Sadiku, <i>Numerical Techniques in Electromagnetics</i>, 3rd ed., CRC, 2009, Ch. 3 (finite differences for Laplace's equation, microstrip example).</li>
+      <li>Y. Saad, <i>Iterative Methods for Sparse Linear Systems</i>, 2nd ed., SIAM, 2003, Sec. 10.3 (IC(0) preconditioning).</li>
+      <li>Substrate εr: Rogers RT/duroid 5880, RO4003C and RO4350B data sheets (design Dk); FR-4 typical; 99.6% alumina; GaAs.</li>
+    </ol>
+  </section>
+
+  <footer class="foot"><span>Made by Ben Hardy</span><span>MIT licence</span><a href="index.html">All calculators</a></footer>
+</main>
+
+<script id="core">
+// Microstrip core: a 2-D quasi-static finite-difference (finite-volume) Laplace solver plus the
+// Hammerstad-Jensen (1980) closed form and Kirschning-Jansen (1982) dispersion. Pure functions, no DOM.
+// Tested by tests/microstrip.test.mjs.
+const MsCore = (() => {
+  const EPS0 = 8.8541878128e-12, C0 = 299792458, ETA0 = 376.730313668;
+
+  // ------------------------------------------------------------------ grid
+  // Graded 1-D grid between lo and hi, finest (d0) next to `fine` (one of the ends), growing by r, capped at dmax.
+  function grade(lo, hi, fineAtLo, d0, r, dmax) {
+    const L = hi - lo; if (L <= 0) return [lo];
+    const steps = []; let d = d0, s = 0;
+    while (s + d < L) { steps.push(d); s += d; d = Math.min(d * r, dmax); }
+    // fold the remainder into the last step (or add one if it is a large fraction)
+    const rem = L - s;
+    if (steps.length && rem < 0.5 * steps[steps.length - 1]) steps[steps.length - 1] += rem; else steps.push(rem);
+    if (!fineAtLo) steps.reverse();
+    const out = [lo]; let p = lo; for (const st of steps) { p += st; out.push(p); }
+    out[out.length - 1] = hi; return out;
+  }
+  const join = (...parts) => { const o = []; for (const p of parts) for (const v of p) if (!o.length || v > o[o.length - 1] + 1e-12) o.push(v); return o; };
+
+  // Build the half-domain grid (x >= 0, symmetry wall at x = 0). Lengths normalised to h = 1.
+  // q = refinement knob (1 = default). Returns {x, y, js0, js1, iw}.
+  function buildGrid(W, T, opt = {}) {
+    const q = opt.q || 1;
+    const d0 = Math.min(W, 1) * 0.004 / q;               // finest cell at the strip edge
+    const r = 1 + 0.18 / q;                               // growth ratio
+    const ext = opt.ext || 40;                            // box size in units of (1 + 2W)
+    const X = W + ext * (1 + 2 * W), Y = 1 + T + ext * (1 + 2 * W);
+    const dmaxIn = Math.max(W, 0.05) / (6 * q);
+    const x = join(grade(0, W, false, d0, r, dmaxIn), grade(W, X, true, d0, r, 1e9));
+    const ySub = grade(0, 1, false, Math.min(d0, 0.004 / q), r, 0.08 / q);
+    const yT = T > 0 ? grade(1, 1 + T, true, Math.min(d0, T / 4), r, T / 3) : [1];
+    // refine the top side of a thick strip as well
+    const yAir = grade(1 + T, Y, true, d0, r, 1e9);
+    const y = join(ySub, yT, yAir);
+    const iw = x.findIndex(v => Math.abs(v - W) < 1e-12);
+    const js0 = y.findIndex(v => Math.abs(v - 1) < 1e-12);
+    const js1 = y.findIndex(v => Math.abs(v - (1 + T)) < 1e-12);
+    return { x, y, iw, js0, js1, W, T };
+  }
+
+  // ------------------------------------------------------------------ assembly
+  // Finite-volume conductances on a vertex grid. eps(cell) = er below y = 1, 1 above.
+  function assemble(G, er) {
+    const { x, y, iw, js0, js1 } = G, nx = x.length, ny = y.length, N = nx * ny;
+    const id = (i, j) => j * nx + i;
+    const epsC = (i, j) => (y[j + 1] <= 1 + 1e-12 ? er : 1);    // cell (i,j): x_i..x_i+1, y_j..y_j+1
+    const gE = new Float64Array(N), gN = new Float64Array(N);   // to (i+1,j) and (i,j+1)
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      if (i < nx - 1) {
+        const dx = x[i + 1] - x[i];
+        const dn = j < ny - 1 ? (y[j + 1] - y[j]) / 2 * epsC(i, j) : 0;
+        const ds = j > 0 ? (y[j] - y[j - 1]) / 2 * epsC(i, j - 1) : 0;
+        gE[id(i, j)] = (dn + ds) / dx;
+      }
+      if (j < ny - 1) {
+        const dy = y[j + 1] - y[j];
+        const de = i < nx - 1 ? (x[i + 1] - x[i]) / 2 * epsC(i, j) : 0;
+        const dw = i > 0 ? (x[i] - x[i - 1]) / 2 * epsC(i - 1, j) : 0;  // i = 0: symmetry wall, half volume only
+        gN[id(i, j)] = (de + dw) / dy;
+      }
+    }
+    // fixed nodes: 0 = free, 1 = ground/box (phi = 0), 2 = strip (phi = 1)
+    const fix = new Uint8Array(N), phi = new Float64Array(N);
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const p = id(i, j);
+      if (j === 0 || j === ny - 1 || i === nx - 1) fix[p] = 1;
+      else if (i <= iw && j >= js0 && j <= js1) { fix[p] = 2; phi[p] = 1; }
+    }
+    return { nx, ny, N, gE, gN, fix, phi };
+  }
+
+  // ------------------------------------------------------------------ PCG with IC(0) preconditioner
+  function solve(S, opt = {}) {
+    const { nx, N, gE, gN, fix, phi } = S;
+    const tol = opt.tol || 1e-10, maxIt = opt.maxIt || 4000;
+    const diag = new Float64Array(N), b = new Float64Array(N);
+    for (let p = 0; p < N; p++) {
+      if (fix[p]) continue;
+      const nb = [[p + 1, gE[p]], [p - 1, gE[p - 1]], [p + nx, gN[p]], [p - nx, gN[p - nx]]];
+      let d = 0;
+      for (const [q, g] of nb) { d += g; if (fix[q]) b[p] += g * phi[q]; }
+      diag[p] = d;
+    }
+    // A v (free part only)
+    const Av = (v, out) => {
+      for (let p = 0; p < N; p++) {
+        if (fix[p]) { out[p] = 0; continue; }
+        let s = diag[p] * v[p];
+        if (!fix[p + 1]) s -= gE[p] * v[p + 1];
+        if (!fix[p - 1]) s -= gE[p - 1] * v[p - 1];
+        if (!fix[p + nx]) s -= gN[p] * v[p + nx];
+        if (!fix[p - nx]) s -= gN[p - nx] * v[p - nx];
+        out[p] = s;
+      }
+    };
+    // IC(0): d_p = a_pp - gW^2/d_W - gS^2/d_S   (natural ordering, 5-point stencil)
+    const dI = new Float64Array(N);
+    for (let p = 0; p < N; p++) {
+      if (fix[p]) continue;
+      let d = diag[p];
+      if (!fix[p - 1]) d -= gE[p - 1] * gE[p - 1] / dI[p - 1];
+      if (!fix[p - nx]) d -= gN[p - nx] * gN[p - nx] / dI[p - nx];
+      dI[p] = d > 1e-30 ? d : diag[p];
+    }
+    const prec = (r, z) => {               // solve (L D^-1 L^T) z = r
+      const t = z;
+      for (let p = 0; p < N; p++) {
+        if (fix[p]) { t[p] = 0; continue; }
+        let s = r[p];
+        if (!fix[p - 1]) s += gE[p - 1] * t[p - 1];
+        if (!fix[p - nx]) s += gN[p - nx] * t[p - nx];
+        t[p] = s / dI[p];
+      }
+      for (let p = 0; p < N; p++) if (!fix[p]) t[p] *= dI[p];
+      for (let p = N - 1; p >= 0; p--) {
+        if (fix[p]) continue;
+        let s = t[p];
+        if (!fix[p + 1]) s += gE[p] * t[p + 1];
+        if (!fix[p + nx]) s += gN[p] * t[p + nx];
+        t[p] = s / dI[p];
+      }
+    };
+    // initial guess: supplied or zero
+    const xv = new Float64Array(N);
+    if (opt.x0 && opt.x0.length === N) for (let p = 0; p < N; p++) if (!fix[p]) xv[p] = opt.x0[p];
+    const r = new Float64Array(N), z = new Float64Array(N), pv = new Float64Array(N), q = new Float64Array(N);
+    Av(xv, q);
+    let bn = 0; for (let p = 0; p < N; p++) { r[p] = fix[p] ? 0 : b[p] - q[p]; bn += b[p] * b[p]; }
+    bn = Math.sqrt(bn) || 1;
+    prec(r, z); pv.set(z);
+    let rz = 0; for (let p = 0; p < N; p++) rz += r[p] * z[p];
+    let it = 0, res = 1;
+    for (; it < maxIt; it++) {
+      Av(pv, q);
+      let pq = 0; for (let p = 0; p < N; p++) pq += pv[p] * q[p];
+      const al = rz / pq;
+      let rn = 0;
+      for (let p = 0; p < N; p++) { xv[p] += al * pv[p]; r[p] -= al * q[p]; rn += r[p] * r[p]; }
+      res = Math.sqrt(rn) / bn;
+      if (res < tol) { it++; break; }
+      prec(r, z);
+      let rz2 = 0; for (let p = 0; p < N; p++) rz2 += r[p] * z[p];
+      const be = rz2 / rz; rz = rz2;
+      for (let p = 0; p < N; p++) pv[p] = z[p] + be * pv[p];
+    }
+    const out = new Float64Array(N);
+    for (let p = 0; p < N; p++) out[p] = fix[p] ? phi[p] : xv[p];
+    return { phi: out, it, res };
+  }
+
+  // Energy: C/eps0 = 2 * sum g (dphi)^2 (factor 2 for the mirrored half)
+  function capNorm(S, phi) {
+    const { nx, ny, gE, gN } = S; let e = 0;
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const p = j * nx + i;
+      if (i < nx - 1) { const d = phi[p + 1] - phi[p]; e += gE[p] * d * d; }
+      if (j < ny - 1) { const d = phi[p + nx] - phi[p]; e += gN[p] * d * d; }
+    }
+    return 2 * e;
+  }
+
+  // Full quasi-static solve: returns C, C0, eps_eff, Z0 and the fields (with dielectric) for drawing.
+  // w, h, t in metres (any consistent unit works; only ratios matter for eps_eff and Z0).
+  function fdSolve(w, h, t, er, opt = {}) {
+    const W = w / (2 * h), T = t / h;
+    const G = buildGrid(W, T, opt);
+    const Sd = assemble(G, er), Sa = assemble(G, 1);
+    const sd = solve(Sd, { x0: opt.x0d, tol: opt.tol }), sa = solve(Sa, { x0: opt.x0a, tol: opt.tol });
+    const cN = capNorm(Sd, sd.phi), c0N = capNorm(Sa, sa.phi);
+    const C = cN * EPS0, Ca = c0N * EPS0;
+    const eeff = C / Ca, z0 = 1 / (C0 * Math.sqrt(C * Ca));
+    return { C, C0: Ca, eeff, z0, grid: G, S: Sd, phi: sd.phi, phiAir: sa.phi, it: [sd.it, sa.it], res: [sd.res, sa.res] };
+  }
+
+  // Node charges around the strip perimeter (for equal-flux field-line seeding).
+  // Returns an ordered list [{x, y, q}] along bottom -> tip -> top, positions at edge midpoints (normalised units).
+  function stripFlux(R) {
+    const { grid: G, S, phi } = R, { x, y, iw, js0, js1 } = G, nx = x.length;
+    const id = (i, j) => j * nx + i, out = [];
+    for (let i = 0; i <= iw; i++) { const p = id(i, js0), q = p - nx; out.push({ x: x[i], y: (y[js0] + y[js0 - 1]) / 2, q: S.gN[q] * (1 - phi[q]) * (i === 0 ? 1 : 1), dir: [0, -1] }); }
+    for (let j = js0; j <= js1; j++) { const p = id(iw, j); out.push({ x: (x[iw] + x[iw + 1]) / 2, y: y[j], q: S.gE[p] * (1 - phi[p + 1]), dir: [1, 0] }); }
+    for (let i = iw; i >= 0; i--) { const p = id(i, js1), q = p + nx; out.push({ x: x[i], y: (y[js1] + y[js1 + 1]) / 2, q: S.gN[p] * (1 - phi[q]), dir: [0, 1] }); }
+    return out;
+  }
+
+  // ------------------------------------------------------------------ interpolation helpers for drawing
+  function locate(arr, v) { let lo = 0, hi = arr.length - 1; if (v <= arr[0]) return 0; if (v >= arr[hi]) return hi - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (arr[m] <= v) lo = m; else hi = m; } return lo; }
+  // potential and E (normalised units) at (x, y); x may be negative (mirror)
+  function sample(R, X, Y, which = 'phi') {
+    const { x, y } = R.grid, nx = x.length, f = R[which];
+    const sx = X < 0 ? -1 : 1, ax = Math.abs(X);
+    const i = locate(x, ax), j = locate(y, Y);
+    const tx = (ax - x[i]) / (x[i + 1] - x[i]), ty = (Y - y[j]) / (y[j + 1] - y[j]);
+    const p = j * nx + i;
+    const a = f[p], b = f[p + 1], c = f[p + nx], d = f[p + nx + 1];
+    const v = a * (1 - tx) * (1 - ty) + b * tx * (1 - ty) + c * (1 - tx) * ty + d * tx * ty;
+    const dvx = ((b - a) * (1 - ty) + (d - c) * ty) / (x[i + 1] - x[i]);
+    const dvy = ((c - a) * (1 - tx) + (d - b) * tx) / (y[j + 1] - y[j]);
+    return { v, ex: -dvx * sx, ey: -dvy };
+  }
+  const inStrip = (R, X, Y) => Math.abs(X) <= R.grid.W && Y >= 1 && Y <= 1 + R.grid.T;
+
+  // trace an E-field line from (x, y) until it reaches ground, the box, or a max length
+  function traceLine(R, X, Y, opt = {}) {
+    const pts = [[X, Y]], hmin = opt.hmin || 2e-3, maxLen = opt.maxLen || 60, yTop = opt.yTop || 1e9, xMax = opt.xMax || 1e9;
+    let len = 0;
+    for (let k = 0; k < 4000; k++) {
+      const s1 = sample(R, X, Y), m1 = Math.hypot(s1.ex, s1.ey); if (m1 < 1e-12) break;
+      const dist = Math.max(hmin, 0.02 * Math.min(Math.hypot(X - Math.sign(X) * Math.min(Math.abs(X), R.grid.W), Y - 1) + 0.05, Y + 0.02));
+      const hx = s1.ex / m1 * dist, hy = s1.ey / m1 * dist;
+      const s2 = sample(R, X + hx / 2, Y + hy / 2), m2 = Math.hypot(s2.ex, s2.ey); if (m2 < 1e-12) break;
+      X += s2.ex / m2 * dist; Y += s2.ey / m2 * dist; len += dist;
+      if (Y <= 0) { const prev = pts[pts.length - 1]; const t = prev[1] / (prev[1] - Y); pts.push([prev[0] + (X - prev[0]) * t, 0]); break; }
+      pts.push([X, Y]);
+      if (len > maxLen || Y > yTop || Math.abs(X) > xMax) break;
+    }
+    return pts;
+  }
+
+  // marching squares: segments of the level-set phi = lev, normalised coordinates, half domain
+  function contour(R, lev, which = 'phi', box) {
+    const { x, y } = R.grid, nx = x.length, ny = y.length, f = R[which], segs = [];
+    const i1 = box ? locate(x, box[1]) + 1 : nx - 1, j1 = box ? locate(y, box[3]) + 1 : ny - 1;
+    for (let j = 0; j < Math.min(j1, ny - 1); j++) for (let i = 0; i < Math.min(i1, nx - 1); i++) {
+      const p = j * nx + i, v = [f[p], f[p + 1], f[p + nx + 1], f[p + nx]];
+      const P = [[x[i], y[j]], [x[i + 1], y[j]], [x[i + 1], y[j + 1]], [x[i], y[j + 1]]];
+      const cut = [];
+      for (let e = 0; e < 4; e++) {
+        const a = v[e], b = v[(e + 1) % 4];
+        if ((a < lev) !== (b < lev)) { const t = (lev - a) / (b - a); const A = P[e], B = P[(e + 1) % 4]; cut.push([A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t]); }
+      }
+      if (cut.length === 2) segs.push(cut);
+      else if (cut.length === 4) { segs.push([cut[0], cut[1]]); segs.push([cut[2], cut[3]]); }
+    }
+    return segs;
+  }
+
+  // ------------------------------------------------------------------ Hammerstad & Jensen (1980)
+  function z01(u) {                                     // air-filled, zero thickness
+    const f = 6 + (2 * Math.PI - 6) * Math.exp(-Math.pow(30.666 / u, 0.7528));
+    return ETA0 / (2 * Math.PI) * Math.log(f / u + Math.sqrt(1 + 4 / (u * u)));
+  }
+  function eeffHJ0(u, er) {
+    const a = 1 + Math.log((Math.pow(u, 4) + Math.pow(u / 52, 2)) / (Math.pow(u, 4) + 0.432)) / 49 + Math.log(1 + Math.pow(u / 18.1, 3)) / 18.7;
+    const b = 0.564 * Math.pow((er - 0.9) / (er + 3), 0.053);
+    return (er + 1) / 2 + (er - 1) / 2 * Math.pow(1 + 10 / u, -a * b);
+  }
+  // with strip thickness t (HJ thickness correction); returns {z0, eeff}
+  function hj(w, h, t, er) {
+    const u = w / h;
+    if (!(t > 0)) { const e = eeffHJ0(u, er); return { z0: z01(u) / Math.sqrt(e), eeff: e, z0air: z01(u) }; }
+    const th = t / h;
+    const coth = v => 1 / Math.tanh(v);
+    const du1 = th / Math.PI * Math.log(1 + 4 * Math.E / (th * Math.pow(coth(Math.sqrt(6.517 * u)), 2)));
+    const dur = 0.5 * (1 + 1 / Math.cosh(Math.sqrt(er - 1))) * du1;
+    const u1 = u + du1, ur = u + dur;
+    const er_ = eeffHJ0(ur, er);
+    const eeff = er_ * Math.pow(z01(u1) / z01(ur), 2);
+    return { z0: z01(ur) / Math.sqrt(er_), eeff, z0air: z01(u1) };
+  }
+  // Kirschning & Jansen (1982) dispersion of eps_eff. f in Hz, h in m.
+  function eeffKJ(w, h, t, er, f) {
+    const u = w / h, fn = f * 1e-9 * h * 1e3;           // GHz * mm
+    const e0 = hj(w, h, t, er).eeff;
+    const P1 = 0.27488 + (0.6315 + 0.525 / Math.pow(1 + 0.0157 * fn, 20)) * u - 0.065683 * Math.exp(-8.7513 * u);
+    const P2 = 0.33622 * (1 - Math.exp(-0.03442 * er));
+    const P3 = 0.0363 * Math.exp(-4.6 * u) * (1 - Math.exp(-Math.pow(fn / 38.7, 4.97)));
+    const P4 = 1 + 2.751 * (1 - Math.exp(-Math.pow(er / 15.916, 8)));
+    const P = P1 * P2 * Math.pow((0.1844 + P3 * P4) * fn, 1.5763);
+    return er - (er - e0) / (1 + P);
+  }
+  // synthesis: width for a target Z0 (HJ), bisection on log(u)
+  function synthHJ(z0t, h, t, er) {
+    let lo = Math.log(0.01), hi = Math.log(100);
+    const g = lu => hj(Math.exp(lu) * h, h, t, er).z0 - z0t;
+    if (g(lo) < 0 || g(hi) > 0) return NaN;
+    for (let k = 0; k < 100; k++) { const m = (lo + hi) / 2; if (g(m) > 0) lo = m; else hi = m; }
+    return Math.exp((lo + hi) / 2) * h;
+  }
+
+  return { EPS0, C0, ETA0, buildGrid, assemble, solve, capNorm, fdSolve, stripFlux, sample, inStrip, traceLine, contour, locate, z01, eeffHJ0, hj, eeffKJ, synthHJ };
+})();
+globalThis.MsCore = MsCore;
+</script>
+<script>
+/* ---- shared UI kit (identical block in every calculator; edit src/common.js and rebuild) ---- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const REDUCED = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------- theme ----------
+const Theme = (() => {
+  const KEY = 'vc-theme', subs = [];
+  let col = null;
+  const eff = () => {
+    const t = document.documentElement.dataset.theme;
+    if (t === 'light' || t === 'dark') return t;
+    return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  };
+  function read() {
+    const cs = getComputedStyle(document.documentElement), g = n => cs.getPropertyValue(n).trim();
+    const names = ['bg', 'surface', 'ink', 'muted', 'line', 'grid', 'field', 'hfield', 'ok', 'bad', 'warn', 'accent', 'metal', 'metal-hi', 'diel', 'diel-edge', 'seq0', 'seq1', 'seq2', 'seq3'];
+    col = {}; for (const n of names) col[n.replace('-', '_')] = g('--' + n);
+    col.rgb = {}; for (const k in col) if (k !== 'rgb') col.rgb[k] = hexRgb(col[k]);
+    col.mono = g('--mono'); col.body = g('--body');
+  }
+  function apply(t) {
+    if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+    read(); label(); subs.forEach(f => f());
+  }
+  function label() { const b = $('#themeBtn'); if (b) { const d = eff() === 'dark'; b.textContent = d ? 'Light' : 'Dark'; b.setAttribute('aria-label', 'Switch to ' + (d ? 'light' : 'dark') + ' theme'); } }
+  function init() {
+    let saved = null; try { saved = localStorage.getItem(KEY); } catch (e) {}
+    if (saved === 'light' || saved === 'dark') document.documentElement.dataset.theme = saved;
+    read(); label();
+    const b = $('#themeBtn');
+    if (b) b.addEventListener('click', () => { const t = eff() === 'dark' ? 'light' : 'dark'; try { localStorage.setItem(KEY, t); } catch (e) {} apply(t); });
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { read(); label(); subs.forEach(f => f()); });
+  }
+  return { init, on: f => subs.push(f), get c() { if (!col) read(); return col; }, eff, apply };
+})();
+function hexRgb(h) {
+  h = (h || '').trim();
+  if (h[0] !== '#') return [128, 128, 128];
+  if (h.length === 4) h = '#' + h[1] + h[1] + h[2] + h[2] + h[3] + h[3];
+  const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+const mixRgb = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+const rgbStr = (c, al = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${al})`;
+// sequential map t in [0,1] -> rgb (theme aware, 4 stops)
+function seqRgb(t) {
+  const R = Theme.c.rgb, s = [R.seq0, R.seq1, R.seq2, R.seq3];
+  t = Math.max(0, Math.min(1, t)) * 3; const i = Math.min(2, Math.floor(t));
+  return mixRgb(s[i], s[i + 1], t - i);
+}
+// diverging map s in [-1,1]: hfield <- surface -> field
+function divRgb(s) {
+  const R = Theme.c.rgb; s = Math.max(-1, Math.min(1, s));
+  return s >= 0 ? mixRgb(R.surface, R.field, Math.pow(s, 0.8)) : mixRgb(R.surface, R.hfield, Math.pow(-s, 0.8));
+}
+function rampCss(kind) {
+  if (kind === 'div') { const c = Theme.c; return `linear-gradient(90deg, ${c.hfield}, ${c.surface}, ${c.field})`; }
+  const c = Theme.c; return `linear-gradient(90deg, ${c.seq0}, ${c.seq1}, ${c.seq2}, ${c.seq3})`;
+}
+
+// ---------- canvas ----------
+// Size the backing store to the element's CSS size x devicePixelRatio. Returns {ctx, w, h} in CSS px.
+function fitCanvas(cv) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  const w = Math.max(1, cv.clientWidth), h = Math.max(1, cv.clientHeight);
+  const W = Math.round(w * dpr), H = Math.round(h * dpr);
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w, h, dpr };
+}
+function arrow(ctx, x0, y0, x1, y1, head = 5) {
+  const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy); if (L < 0.5) return;
+  const ux = dx / L, uy = dy / L, hh = Math.min(head, L * 0.6);
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - ux * hh * 0.6, y1 - uy * hh * 0.6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - ux * hh - uy * hh * 0.55, y1 - uy * hh + ux * hh * 0.55);
+  ctx.lineTo(x1 - ux * hh + uy * hh * 0.55, y1 - uy * hh - ux * hh * 0.55); ctx.closePath(); ctx.fill();
+}
+function onResize(el, fn) { if ('ResizeObserver' in window) new ResizeObserver(() => fn()).observe(el); else window.addEventListener('resize', fn); }
+
+// ---------- number formatting ----------
+function fmt(v, sig = 4) {
+  if (v === null || v === undefined || !isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a >= 1e6 || a < 1e-3)) { const s = v.toExponential(sig - 1).replace('e+', 'e'); return s.replace(/\.?0+e/, 'e'); }
+  return String(Number(v.toPrecision(sig)));
+}
+const PRE = [[1e12, 'T'], [1e9, 'G'], [1e6, 'M'], [1e3, 'k'], [1, ''], [1e-3, 'm'], [1e-6, 'µ'], [1e-9, 'n'], [1e-12, 'p'], [1e-15, 'f']];
+function fmtSI(v, unit, sig = 4) {
+  if (!isFinite(v)) return '—';
+  if (v === 0) return '0 ' + unit;
+  const a = Math.abs(v);
+  for (const [s, p] of PRE) if (a >= s * 0.99995) return fmt(v / s, sig) + ' ' + p + unit;
+  return fmt(v, sig) + ' ' + unit;
+}
+const NP2DB = 20 / Math.LN10;
+
+// ---------- units ----------
+const Units = {
+  len: { mm: 1e-3, mil: 25.4e-6, um: 1e-6 },
+  freq: { Hz: 1, kHz: 1e3, MHz: 1e6, GHz: 1e9 },
+};
+
+// ---------- URL hash state ----------
+const Hash = {
+  read() { const o = {}; const h = location.hash.replace(/^#/, ''); if (!h) return o; for (const kv of h.split('&')) { const [k, v] = kv.split('='); if (k) o[decodeURIComponent(k)] = decodeURIComponent(v || ''); } return o; },
+  _t: 0,
+  write(obj) {
+    clearTimeout(this._t);
+    this._t = setTimeout(() => {
+      const s = Object.entries(obj).map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(typeof v === 'number' ? Number(v.toPrecision(6)) : v)).join('&');
+      try { history.replaceState(null, '', '#' + s); } catch (e) {}
+    }, 150);
+  },
+};
+const num = (v, d) => { const x = parseFloat(v); return isFinite(x) ? x : d; };
+
+// ---------- bound inputs ----------
+// A number input bound to a state value in SI units. kind: 'len' | 'freq' | null. units() returns the current unit name.
+const Fields = [];
+function bindNumber(el, o) {
+  const f = { el, ...o };
+  const factor = () => f.kind === 'len' ? Units.len[f.units()] : f.kind === 'freq' ? Units.freq[f.units()] : (f.scale || 1);
+  f.show = () => { if (document.activeElement === el) return; const v = f.get() / factor(); el.value = isFinite(v) ? String(Number(v.toPrecision(f.sig || 5))) : ''; };
+  el.addEventListener('input', () => {
+    const v = parseFloat(el.value); if (!isFinite(v)) return;
+    const si = v * factor();
+    if ((f.min !== undefined && si < f.min) || (f.max !== undefined && si > f.max)) { el.setAttribute('aria-invalid', 'true'); return; }
+    el.removeAttribute('aria-invalid'); f.set(si); f.onchange && f.onchange();
+  });
+  el.addEventListener('change', () => { f.show(); });
+  el.addEventListener('blur', () => { f.show(); });
+  Fields.push(f); f.show(); return f;
+}
+// A range input mapped (optionally log) onto [min, max] in SI units.
+function bindRange(el, o) {
+  const f = { el, ...o, isRange: true }; const N = 1000; el.min = 0; el.max = N; el.step = 1;
+  const to = v => f.log ? Math.log(v / f.min) / Math.log(f.max / f.min) * N : (v - f.min) / (f.max - f.min) * N;
+  const from = s => f.log ? f.min * Math.pow(f.max / f.min, s / N) : f.min + (f.max - f.min) * s / N;
+  f.show = () => { const v = f.get(); el.value = String(Math.round(Math.max(0, Math.min(N, to(v))))); if (f.text) el.setAttribute('aria-valuetext', f.text(v)); };
+  el.addEventListener('input', () => { let v = from(+el.value); if (f.snap) v = f.snap(v); f.set(v); f.onchange && f.onchange(); });
+  Fields.push(f); f.show(); return f;
+}
+const refreshFields = () => Fields.forEach(f => f.show());
+// segmented control: buttons with data-v; calls set(v)
+function bindSeg(seg, get, set) {
+  const bs = $$('button', seg);
+  const show = () => bs.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(get()))));
+  bs.forEach(b => b.addEventListener('click', () => { set(b.dataset.v); show(); }));
+  show(); Fields.push({ show }); return show;
+}
+
+// ---------- line plots ----------
+function niceTicks(lo, hi, n = 5) {
+  const span = hi - lo; if (!(span > 0)) return [lo];
+  const step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const st = [1, 2, 2.5, 5, 10].map(s => s * mag).find(s => span / s <= n) || 10 * mag;
+  const out = []; for (let v = Math.ceil(lo / st - 1e-9) * st; v <= hi + st * 1e-9; v += st) out.push(Math.abs(v) < st * 1e-9 ? 0 : v);
+  return out;
+}
+function logTicks(lo, hi) {
+  const a = Math.floor(Math.log10(lo) + 1e-9), b = Math.ceil(Math.log10(hi) - 1e-9), out = [], minor = [];
+  const dec = b - a;
+  for (let e = a; e <= b; e++) for (const m of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
+    const v = m * Math.pow(10, e); if (v < lo * 0.999 || v > hi * 1.001) continue;
+    if (m === 1 || (dec <= 2 && (m === 2 || m === 5)) || (dec <= 1 && m !== 1)) out.push(v); else minor.push(v);
+  }
+  return { major: out, minor };
+}
+// opt: {x:{min,max,log,label,fmt}, y:{...}, series:[{pts,color,width,dash,label}], points:[{x,y,color,r,label,ring}], vlines:[{x,color,dash,label}], bands:[{x0,x1,color}], hlines}
+function drawPlot(cv, opt) {
+  const { ctx, w, h } = fitCanvas(cv), C = Theme.c;
+  ctx.clearRect(0, 0, w, h);
+  const small = w < 420;
+  const m = { l: small ? 46 : 56, r: 14, t: 12, b: small ? 38 : 42 };
+  const X = opt.x, Y = opt.y, pw = w - m.l - m.r, ph = h - m.t - m.b;
+  const sx = v => m.l + (X.log ? Math.log(v / X.min) / Math.log(X.max / X.min) : (v - X.min) / (X.max - X.min)) * pw;
+  const sy = v => m.t + ph - (Y.log ? Math.log(v / Y.min) / Math.log(Y.max / Y.min) : (v - Y.min) / (Y.max - Y.min)) * ph;
+  ctx.font = `500 ${small ? 10 : 11}px ${C.mono}`; ctx.textBaseline = 'middle';
+  // bands
+  for (const b of opt.bands || []) { ctx.fillStyle = b.color; const x0 = Math.max(m.l, sx(b.x0)), x1 = Math.min(m.l + pw, sx(b.x1)); if (x1 > x0) ctx.fillRect(x0, m.t, x1 - x0, ph); if (b.label) { ctx.fillStyle = C.muted; ctx.textAlign = 'left'; ctx.fillText(b.label, x0 + 4, m.t + 9); } }
+  // grid + ticks
+  const xt = X.log ? logTicks(X.min, X.max) : { major: niceTicks(X.min, X.max, small ? 4 : 6), minor: [] };
+  const yt = Y.log ? logTicks(Y.min, Y.max) : { major: niceTicks(Y.min, Y.max, 5), minor: [] };
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = C.grid;
+  for (const v of xt.minor) { const x = Math.round(sx(v)) + 0.5; ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.moveTo(x, m.t); ctx.lineTo(x, m.t + ph); ctx.stroke(); ctx.globalAlpha = 1; }
+  for (const v of yt.minor) { const y = Math.round(sy(v)) + 0.5; ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.moveTo(m.l, y); ctx.lineTo(m.l + pw, y); ctx.stroke(); ctx.globalAlpha = 1; }
+  ctx.fillStyle = C.muted;
+  ctx.textAlign = 'center';
+  for (const v of xt.major) { const x = Math.round(sx(v)) + 0.5; ctx.strokeStyle = C.grid; ctx.beginPath(); ctx.moveTo(x, m.t); ctx.lineTo(x, m.t + ph); ctx.stroke(); ctx.fillText((X.fmt || fmt)(v), x, m.t + ph + 12); }
+  ctx.textAlign = 'right';
+  for (const v of yt.major) { const y = Math.round(sy(v)) + 0.5; ctx.strokeStyle = C.grid; ctx.beginPath(); ctx.moveTo(m.l, y); ctx.lineTo(m.l + pw, y); ctx.stroke(); ctx.fillText((Y.fmt || fmt)(v), m.l - 6, y); }
+  ctx.strokeStyle = C.line; ctx.strokeRect(m.l + 0.5, m.t + 0.5, pw, ph);
+  ctx.textAlign = 'center'; ctx.fillText(X.label || '', m.l + pw / 2, h - 9);
+  ctx.save(); ctx.translate(11, m.t + ph / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(Y.label || '', 0, 0); ctx.restore();
+  // clip to plot area
+  ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, pw, ph); ctx.clip();
+  for (const L of opt.hlines || []) { ctx.strokeStyle = L.color || C.muted; ctx.setLineDash(L.dash || [4, 4]); ctx.beginPath(); ctx.moveTo(m.l, sy(L.y)); ctx.lineTo(m.l + pw, sy(L.y)); ctx.stroke(); ctx.setLineDash([]); }
+  for (const L of opt.vlines || []) {
+    const x = sx(L.x); ctx.strokeStyle = L.color || C.muted; ctx.lineWidth = L.width || 1; ctx.setLineDash(L.dash || [4, 4]);
+    ctx.beginPath(); ctx.moveTo(x, m.t); ctx.lineTo(x, m.t + ph); ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth = 1;
+    if (L.label) { ctx.fillStyle = L.color || C.muted; ctx.textAlign = x > m.l + pw - 70 ? 'right' : 'left'; ctx.fillText(L.label, x + (ctx.textAlign === 'left' ? 4 : -4), m.t + (L.ly || 10)); }
+  }
+  for (const s of opt.series || []) {
+    ctx.strokeStyle = s.color || C.ink; ctx.lineWidth = s.width || 2; ctx.setLineDash(s.dash || []); ctx.beginPath();
+    let pen = false;
+    for (const [x, y] of s.pts) {
+      if (!isFinite(y) || (Y.log && y <= 0)) { pen = false; continue; }
+      const px = sx(x), py = sy(y);
+      if (!pen) { ctx.moveTo(px, py); pen = true; } else ctx.lineTo(px, py);
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  ctx.restore();
+  for (const p of opt.points || []) {
+    if (!isFinite(p.y) || !isFinite(p.x)) continue;
+    const px = sx(p.x), py = sy(p.y); if (px < m.l - 1 || px > m.l + pw + 1 || py < m.t - 1 || py > m.t + ph + 1) continue;
+    ctx.fillStyle = p.ring ? C.surface : (p.color || C.ink); ctx.strokeStyle = p.color || C.ink; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(px, py, p.r || 4.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+    if (p.label) { ctx.fillStyle = p.color || C.ink; ctx.textAlign = px > m.l + pw * 0.7 ? 'right' : 'left'; ctx.fillText(p.label, px + (ctx.textAlign === 'left' ? 8 : -8), py - 10); }
+  }
+  return { sx, sy, m, pw, ph };
+}
+
+// ---------- animation clock ----------
+const Clock = (() => {
+  let on = !REDUCED, last = 0, t = 0; const subs = [];
+  function frame(ts) { const dt = last ? Math.min(0.1, (ts - last) / 1000) : 0; last = ts; if (on) { t += dt; subs.forEach(f => f(t)); } requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+  return { on: f => subs.push(f), get running() { return on; }, set running(v) { on = v; }, get t() { return t; }, set t(v) { t = v; } };
+})();
+function bindPlay(btn) {
+  const show = () => { btn.setAttribute('aria-pressed', String(Clock.running)); btn.textContent = Clock.running ? 'Pause' : 'Animate'; };
+  btn.addEventListener('click', () => { Clock.running = !Clock.running; show(); });
+  show();
+}
+</script>
+<script>
+const M = MsCore;
+const SUBS = {
+  d5880: { name: '5880', er: 2.20, h: 0.508e-3 },
+  r4003: { name: 'RO4003C', er: 3.55, h: 0.508e-3 },
+  r4350: { name: 'RO4350B', er: 3.66, h: 0.508e-3 },
+  fr4: { name: 'FR-4', er: 4.4, h: 1.6e-3 },
+  alu: { name: 'Alumina', er: 9.8, h: 0.635e-3 },
+  gaas: { name: 'GaAs', er: 12.9, h: 0.1e-3 },
+};
+const H = Hash.read();
+const st = {
+  s: SUBS[H.s] ? H.s : (H.s === 'custom' ? 'custom' : 'r4350'),
+  er: num(H.er, 3.66), h: num(H.h, 0.508e-3), w: num(H.w, 1.1e-3), t: Math.max(0, num(H.t, 0)), f: num(H.f, 10e9),
+  lu: H.lu === 'mil' ? 'mil' : 'mm', layers: (H.ly || 'eq.el').split('.'),
+};
+if (SUBS[st.s] && !H.er) { st.er = SUBS[st.s].er; st.h = SUBS[st.s].h; }
+const clampW = () => { st.w = Math.min(20 * st.h, Math.max(0.05 * st.h, st.w)); st.t = Math.min(st.t, 0.5 * st.h); };
+clampW();
+const fmtLen = m => st.lu === 'mil' ? fmt(m / 25.4e-6, 4) + ' mil' : fmtSI(m, 'm');
+
+// ---------- solver: worker built from the core script (falls back to the main thread) ----------
+let worker = null, jobId = 0, busy = false, pending = null, refineTimer = 0;
+const handlers = {};
+function runJob(m) {
+  const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  if (m.type === 'solve') {
+    const R = MsCore.fdSolve(m.w, m.h, m.t, m.er, { q: m.q });
+    return { id: m.id, type: 'solve', q: m.q, z0: R.z0, eeff: R.eeff, C: R.C, C0: R.C0, it: R.it, ms: (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0,
+      x: R.grid.x, y: R.grid.y, W: R.grid.W, T: R.grid.T, phi: R.phi, flux: MsCore.stripFlux(R), args: m };
+  }
+  if (m.type === 'synth') {
+    // secant iteration on ln(w) using the FD solver, starting from the closed-form width
+    let w0 = m.w0, z0 = MsCore.fdSolve(w0, m.h, m.t, m.er, { q: m.q }).z0, w1 = w0 * 1.05, z1 = MsCore.fdSolve(w1, m.h, m.t, m.er, { q: m.q }).z0, n = 2;
+    for (let k = 0; k < 8 && Math.abs(z1 / m.z - 1) > 2e-4; k++) {
+      const l0 = Math.log(w0), l1 = Math.log(w1), l2 = l1 + (m.z - z1) * (l1 - l0) / (z1 - z0);
+      w0 = w1; z0 = z1; w1 = Math.exp(Math.max(Math.log(0.04 * m.h), Math.min(Math.log(25 * m.h), l2))); z1 = MsCore.fdSolve(w1, m.h, m.t, m.er, { q: m.q }).z0; n++;
+    }
+    return { id: m.id, type: 'synth', w: w1, z: z1, n, ms: (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0 };
+  }
+  if (m.type === 'val') {
+    const rows = [];
+    for (const er of m.ers) for (const u of m.us) {
+      const a = MsCore.fdSolve(u, 1, 0, er, { q: 1 }), b = MsCore.fdSolve(u, 1, 0, er, { q: 2 }), hj = MsCore.hj(u, 1, 0, er);
+      rows.push({ er, u, z1: a.z0, z2: b.z0, e2: b.eeff, zh: hj.z0, eh: hj.eeff });
+    }
+    return { id: m.id, type: 'val', rows, ms: (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0 };
+  }
+}
+try {
+  const src = document.getElementById('core').textContent + '\n' + runJob.toString() + '\nonmessage = e => { const r = runJob(e.data); postMessage(r, r.phi ? [r.phi.buffer] : []); };';
+  worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+  worker.onmessage = e => onResult(e.data);
+  worker.onerror = () => { worker = null; };
+} catch (e) { worker = null; }
+function post(m) {
+  m.id = ++jobId;
+  if (worker) worker.postMessage(m);
+  else setTimeout(() => onResult(runJob(m)), 0);
+  return m.id;
+}
+function requestSolve(q = 1) {
+  const m = { type: 'solve', w: st.w, h: st.h, t: st.t, er: st.er, q };
+  if (busy) { pending = m; return; }
+  busy = true; post(m);
+}
+let R = null, hist = [];
+function onResult(r) {
+  if (r.type === 'solve') {
+    busy = false;
+    const a = r.args || {};
+    // ignore stale results if inputs moved on (a newer job is pending)
+    R = { grid: { x: r.x, y: r.y, W: r.W, T: r.T }, phi: r.phi, flux: r.flux, z0: r.z0, eeff: r.eeff, C: r.C, C0: r.C0, it: r.it, ms: r.ms, q: r.q, w: a.w, h: a.h, t: a.t, er: a.er };
+    const key = st.er.toFixed(4) + '|' + (st.t / st.h).toFixed(4);
+    if (a.er === st.er && a.t === st.t && a.h === st.h) hist.push({ key, u: a.w / a.h, z: r.z0 });
+    if (hist.length > 400) hist.shift();
+    buildGeometry(); draw(); showResults(); drawPlots();
+    if (pending) { const m = pending; pending = null; busy = true; post(m); }
+    else if (r.q === 1) { clearTimeout(refineTimer); refineTimer = setTimeout(() => requestSolve(2), 350); }
+  } else if (handlers[r.id]) { handlers[r.id](r); delete handlers[r.id]; }
+}
+
+// ---------- geometry from a solve: contours and field lines (normalized units, h = 1) ----------
+let GEO = null;
+function view() {
+  const W = st.w / (2 * st.h);
+  const X = Math.max(W + 2.2, 3.2), Y = Math.max(2.6, Math.min(4.5, 1 + W * 0.9 + 1.4));
+  return { X, Y };
+}
+function buildGeometry() {
+  if (!R) return;
+  const V = view(), box = [0, V.X * 1.05, 0, V.Y * 1.05];
+  const eq = [];
+  for (let k = 1; k <= 9; k++) eq.push({ lev: k / 10, segs: M.contour(R, k / 10, 'phi', box) });
+  // equal-flux seeds along the strip perimeter (half domain)
+  const F = R.flux, cum = [0]; for (const e of F) cum.push(cum[cum.length - 1] + e.q);
+  const Q = cum[cum.length - 1], n = 13, lines = [];
+  for (let k = 0; k < n; k++) {
+    const target = (k + 0.5) / n * Q; let i = 0; while (i < F.length - 1 && cum[i + 1] < target) i++;
+    const A = F[i], B = F[Math.min(F.length - 1, i + 1)], tt = Math.max(0, Math.min(1, (target - cum[i]) / Math.max(1e-30, F[i].q)));
+    const sx = A.x + (B.x - A.x) * tt * 0, sy = A.y;          // stay at the midpoint of the edge that carries this flux
+    const p = M.traceLine(R, sx + A.dir[0] * 1e-4, sy + A.dir[1] * 1e-4, { yTop: V.Y * 1.4, xMax: V.X * 1.4, maxLen: 30 });
+    lines.push(p);
+  }
+  GEO = { eq, lines, V };
+}
+
+// ---------- drawing ----------
+const cv = $('#cv');
+let off = document.createElement('canvas'), offKey = '';
+function draw() {
+  const { ctx, w, h } = fitCanvas(cv), C = Theme.c; ctx.clearRect(0, 0, w, h);
+  if (!R || !GEO) { ctx.fillStyle = C.muted; ctx.font = `500 13px ${C.body}`; ctx.fillText('Solving…', 16, 24); return; }
+  const V = GEO.V, padB = 26, padT = 18;
+  const s = Math.min(w / (2 * V.X), (h - padB - padT) / V.Y), cx = w / 2, y0 = h - padB;
+  const P = (x, y) => [cx + x * s, y0 - y * s];
+  const Wn = R.grid.W, Tn = R.grid.T;
+  const on = k => st.layers.includes(k);
+  // substrate
+  const [sx0, sy0] = P(-V.X * 1.2, 1), [sx1] = P(V.X * 1.2, 0);
+  ctx.fillStyle = C.diel; ctx.fillRect(0, sy0, w, y0 - sy0);
+  // |E| map
+  if (on('map')) {
+    const ow = Math.max(80, Math.round(w / 2)), oh = Math.max(50, Math.round(h / 2)), key = [ow, oh, R.z0, R.q, Theme.eff(), w, h].join('|');
+    if (key !== offKey) {
+      offKey = key; off.width = ow; off.height = oh; const o = off.getContext('2d'), img = o.createImageData(ow, oh), px = img.data;
+      for (let j = 0; j < oh; j++) for (let i = 0; i < ow; i++) {
+        const X = ((i + 0.5) / ow * w - cx) / s, Y = (y0 - (j + 0.5) / oh * h) / s, p = (j * ow + i) * 4;
+        if (Y <= 0 || M.inStrip(R, X, Y) || Math.abs(X) > R.grid.x[R.grid.x.length - 1]) { px[p + 3] = 0; continue; }
+        const S = M.sample(R, X, Y), e = Math.hypot(S.ex, S.ey);
+        const c = seqRgb(Math.pow(Math.min(1, e / 3), 0.6)); px[p] = c[0]; px[p + 1] = c[1]; px[p + 2] = c[2]; px[p + 3] = 235;
+      }
+      o.putImageData(img, 0, 0);
+    }
+    ctx.imageSmoothingEnabled = true; ctx.drawImage(off, 0, 0, w, h);
+  }
+  // interface line
+  ctx.strokeStyle = C.diel_edge; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, sy0 + 0.5); ctx.lineTo(w, sy0 + 0.5); ctx.stroke();
+  // mesh
+  if (on('mesh')) {
+    ctx.strokeStyle = rgbStr(Theme.c.rgb.muted, 0.35); ctx.lineWidth = 0.6; ctx.beginPath();
+    for (const x of R.grid.x) { if (x > V.X * 1.3) break; for (const sg of [-1, 1]) { const X = cx + sg * x * s; ctx.moveTo(X, 0); ctx.lineTo(X, y0); } }
+    for (const y of R.grid.y) { if (y > V.Y * 1.3) break; const Y = y0 - y * s; ctx.moveTo(0, Y); ctx.lineTo(w, Y); }
+    ctx.stroke();
+  }
+  // equipotentials
+  if (on('eq')) {
+    ctx.lineWidth = 1;
+    for (const E of GEO.eq) {
+      ctx.strokeStyle = rgbStr(Theme.c.rgb.ink, E.lev === 0.5 ? 0.75 : 0.42); ctx.beginPath();
+      for (const [a, b] of E.segs) for (const sg of [-1, 1]) { const p = P(sg * a[0], a[1]), q = P(sg * b[0], b[1]); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); }
+      ctx.stroke();
+    }
+  }
+  // field lines
+  if (on('el')) {
+    ctx.strokeStyle = C.field; ctx.fillStyle = C.field; ctx.lineWidth = 1.5;
+    for (const L of GEO.lines) for (const sg of [-1, 1]) {
+      ctx.beginPath(); L.forEach(([x, y], i) => { const p = P(sg * x, y); if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); ctx.stroke();
+      // arrow at ~40% of the visible length
+      let acc = 0, tot = 0; for (let i = 1; i < L.length; i++) tot += Math.hypot(L[i][0] - L[i - 1][0], L[i][1] - L[i - 1][1]);
+      const target = Math.min(tot * 0.45, 1.2);
+      for (let i = 1; i < L.length; i++) { acc += Math.hypot(L[i][0] - L[i - 1][0], L[i][1] - L[i - 1][1]); if (acc >= target) { const p = P(sg * L[i - 1][0], L[i - 1][1]), q = P(sg * L[i][0], L[i][1]); const dx = q[0] - p[0], dy = q[1] - p[1], d = Math.hypot(dx, dy) || 1; arrow(ctx, q[0] - dx / d * 6, q[1] - dy / d * 6, q[0], q[1], 6); break; } }
+    }
+  }
+  // ground and strip
+  ctx.fillStyle = C.metal; ctx.fillRect(0, y0, w, 6);
+  const [a0, b0] = P(-Wn, 1 + Tn), [a1, b1] = P(Wn, 1);
+  ctx.fillRect(a0, b0, a1 - a0, Math.max(2.5, b1 - b0));
+  ctx.strokeStyle = C.ink; ctx.lineWidth = 1; ctx.strokeRect(a0, b0, a1 - a0, Math.max(2.5, b1 - b0));
+  // dimensions
+  ctx.fillStyle = C.ink; ctx.strokeStyle = C.ink; ctx.font = `500 11px ${C.mono}`; ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'center';
+  ctx.fillText('w = ' + fmtLen(st.w), cx, b0 - 8);
+  const xh = cx + (V.X - 0.35) * s; ctx.beginPath(); ctx.moveTo(xh, y0); ctx.lineTo(xh, sy0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(xh - 4, y0); ctx.lineTo(xh + 4, y0); ctx.moveTo(xh - 4, sy0); ctx.lineTo(xh + 4, sy0); ctx.stroke();
+  ctx.textAlign = 'right'; ctx.fillText('h = ' + fmtLen(st.h), xh - 6, (y0 + sy0) / 2 + 4);
+  ctx.textAlign = 'left'; ctx.fillStyle = C.muted; ctx.fillText('εr = ' + fmt(st.er, 4), 10, y0 - 8);
+  ctx.fillText('air', 10, 16);
+}
+
+// ---------- results ----------
+$('#cmp').innerHTML = `<div class="h"></div><div class="h">field solve</div><div class="h">H–J 1980</div><div class="h">Δ</div>
+<div class="k">Z0</div><div class="big" id="zFD">—</div><div class="big" id="zHJ">—</div><div id="zD">—</div>
+<div class="k">εeff</div><div id="eFD">—</div><div id="eHJ">—</div><div id="eD">—</div>`;
+const OUT = [['c', 'C per m'], ['ek', 'εeff(f) K–J'], ['lg', 'λg at f'], ['wh', 'w / h'], ['vp', 'Phase velocity']];
+$('#out').innerHTML = OUT.map(([k, l]) => `<div><span>${l}</span><b id="o-${k}"></b></div>`).join('');
+function showResults() {
+  const hj = M.hj(st.w, st.h, st.t, st.er), ek = M.eeffKJ(st.w, st.h, st.t, st.er, st.f);
+  $('#zHJ').textContent = fmt(hj.z0, 4) + ' Ω'; $('#eHJ').textContent = fmt(hj.eeff, 4);
+  if (R) {
+    $('#zFD').textContent = fmt(R.z0, 4) + ' Ω'; $('#eFD').textContent = fmt(R.eeff, 4);
+    $('#zD').textContent = (R.z0 >= hj.z0 ? '+' : '') + fmt(100 * (R.z0 / hj.z0 - 1), 2) + '%';
+    $('#eD').textContent = (R.eeff >= hj.eeff ? '+' : '') + fmt(100 * (R.eeff / hj.eeff - 1), 2) + '%';
+    $('#o-c').textContent = fmtSI(R.C, 'F/m', 4);
+    const n = R.grid.x.length * R.grid.y.length;
+    $('#status').innerHTML = `<span>grid <b>${R.grid.x.length} × ${R.grid.y.length}</b> (${R.q === 1 ? 'default' : 'refined'})</span><span>CG iterations <b>${R.it.join(' + ')}</b></span><span>solve <b>${Math.round(R.ms)} ms</b></span><span>${worker ? 'web worker' : 'main thread'}</span>`;
+  }
+  $('#o-ek').textContent = fmt(ek, 4);
+  $('#o-lg').textContent = fmtLen(299792458 / (st.f * Math.sqrt(ek)));
+  $('#o-wh').textContent = fmt(st.w / st.h, 4);
+  $('#o-vp').textContent = fmt(1 / Math.sqrt(ek), 3) + ' c';
+  const C = Theme.c;
+  $('#legend').innerHTML = `<span><i style="color:${C.ink}"></i>equipotentials, 0.1 V steps</span><span><i style="color:${C.field}"></i>E lines, equal flux between lines</span>` + (st.layers.includes('map') ? `<span>|E|</span><span class="ramp" style="background:${rampCss('seq')}"></span>` : '');
+  cv.setAttribute('aria-label', `Microstrip cross-section, w ${fmtLen(st.w)}, h ${fmtLen(st.h)}, er ${st.er}. Field solve Z0 ${R ? fmt(R.z0, 4) : '...'} ohm.`);
+}
+
+// ---------- plots ----------
+function drawPlots() {
+  const C = Theme.c, pts = [];
+  for (let i = 0; i <= 160; i++) { const u = 0.05 * Math.pow(400, i / 160); pts.push([u, M.hj(u * st.h, st.h, st.t, st.er).z0]); }
+  const key = st.er.toFixed(4) + '|' + (st.t / st.h).toFixed(4);
+  const dots = hist.filter(p => p.key === key).map(p => ({ x: p.u, y: p.z, color: C.field, r: 3, ring: true }));
+  if (R) dots.push({ x: R.w / R.h, y: R.z0, color: C.field, r: 5, label: fmt(R.z0, 4) + ' Ω' });
+  drawPlot($('#pZ'), { x: { min: 0.05, max: 20, log: true, label: 'w / h', fmt: v => fmt(v, 2) }, y: { min: 5, max: Math.max(150, pts[0][1] * 1.05), log: true, label: 'Z0 (Ω)' },
+    series: [{ pts, color: C.ink, width: 2 }], points: dots, hlines: [{ y: 50, color: C.muted }] });
+  $('#lgZ').innerHTML = `<span><i style="color:${C.ink}"></i>Hammerstad–Jensen</span><span><i class="box" style="background:${C.field};border-radius:50%"></i>finite-difference solves</span><span><i class="dash" style="color:${C.muted}"></i>50 Ω</span>`;
+  const e = [], f0 = 0.1e9, f1 = 110e9;
+  for (let i = 0; i <= 160; i++) { const f = f0 * Math.pow(f1 / f0, i / 160); e.push([f, M.eeffKJ(st.w, st.h, st.t, st.er, f)]); }
+  const e0 = M.hj(st.w, st.h, st.t, st.er).eeff;
+  drawPlot($('#pE'), { x: { min: f0, max: f1, log: true, label: 'frequency (Hz)', fmt: v => fmtSI(v, '').replace(' ', '') }, y: { min: Math.max(1, e0 - (st.er - e0) * 0.15), max: st.er * 1.02, label: 'εeff' },
+    series: [{ pts: e, color: C.ink, width: 2.2 }], hlines: [{ y: st.er, color: C.muted }, { y: e0, color: C.hfield, dash: [2, 3] }],
+    points: [{ x: st.f, y: M.eeffKJ(st.w, st.h, st.t, st.er, st.f), color: C.field, label: fmt(M.eeffKJ(st.w, st.h, st.t, st.er, st.f), 4) }].concat(R ? [{ x: f0 * 1.15, y: R.eeff, color: C.field, ring: true, label: 'field solve (static)' }] : []) });
+  $('#lgE').innerHTML = `<span><i style="color:${C.ink}"></i>Kirschning–Jansen εeff(f)</span><span><i class="dash" style="color:${C.hfield}"></i>static H–J</span><span><i class="dash" style="color:${C.muted}"></i>εr</span>`;
+}
+
+// ---------- controls ----------
+Theme.init();
+const sc = $('#subChips');
+for (const [k, S] of Object.entries(SUBS)) sc.insertAdjacentHTML('beforeend', `<button type="button" data-v="${k}">${S.name} <span class="mono" style="opacity:.7">${S.er}</span></button>`);
+$$('button', sc).forEach(b => b.addEventListener('click', () => { st.s = b.dataset.v; const S = SUBS[st.s]; const u = st.w / st.h; st.er = S.er; st.h = S.h; st.w = u * st.h; st.t = 0; change(); }));
+Fields.push({ show: () => $$('button', sc).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === st.s))) });
+bindNumber($('#erN'), { get: () => st.er, set: v => { st.er = v; st.s = 'custom'; }, min: 1, max: 30, onchange: change });
+bindNumber($('#hN'), { kind: 'len', units: () => st.lu, get: () => st.h, set: v => { const u = st.w / st.h; st.h = v; st.w = u * v; st.s = 'custom'; }, min: 1e-6, max: 0.1, onchange: change });
+bindRange($('#wR'), { min: 0.05, max: 20, log: true, get: () => st.w / st.h, set: v => { st.w = v * st.h; }, text: v => 'w/h ' + fmt(v, 3), onchange: change });
+bindNumber($('#wN'), { kind: 'len', units: () => st.lu, get: () => st.w, set: v => { st.w = v; }, min: 1e-7, max: 1, onchange: change });
+bindNumber($('#tN'), { kind: 'len', units: () => st.lu, get: () => st.t, set: v => { st.t = v; }, min: 0, max: 0.05, onchange: change });
+bindRange($('#fR'), { min: 0.1e9, max: 110e9, log: true, get: () => st.f, set: v => st.f = v, text: v => fmtSI(v, 'Hz'), onchange: () => { showResults(); drawPlots(); saveHash(); } });
+bindNumber($('#fN'), { kind: 'freq', units: () => 'GHz', get: () => st.f, set: v => st.f = v, min: 0.1e9, max: 110e9, onchange: () => { showResults(); drawPlots(); saveHash(); } });
+bindSeg($('#luSeg'), () => st.lu, v => { st.lu = v; refreshFields(); $$('.lu').forEach(e => e.textContent = st.lu); draw(); showResults(); saveHash(); });
+$$('#layers button').forEach(b => {
+  b.addEventListener('click', () => { const k = b.dataset.v; st.layers = st.layers.includes(k) ? st.layers.filter(x => x !== k) : st.layers.concat(k); showLayers(); draw(); showResults(); saveHash(); });
+});
+const showLayers = () => $$('#layers button').forEach(b => b.setAttribute('aria-pressed', String(st.layers.includes(b.dataset.v))));
+$('#synthBtn').addEventListener('click', () => {
+  const z = parseFloat($('#ztN').value); if (!(z > 5 && z < 250)) return;
+  const wh = M.synthHJ(z, st.h, st.t, st.er);
+  if (!isFinite(wh)) { $('#synthOut').textContent = 'Out of range for this substrate.'; return; }
+  $('#synthOut').textContent = `H–J width ${fmtLen(wh)}. Refining with the field solver…`;
+  const id = post({ type: 'synth', z, w0: wh, h: st.h, t: st.t, er: st.er, q: 2 });
+  handlers[id] = r => { st.w = r.w; clampW(); $('#synthOut').textContent = `H–J: ${fmtLen(wh)} · field solve: ${fmtLen(r.w)} (${r.n} solves, ${Math.round(r.ms)} ms).`; change(); };
+});
+function saveHash() { Hash.write({ s: st.s, er: st.er, h: st.h, w: st.w, t: st.t, f: st.f, lu: st.lu, ly: st.layers.join('.') }); }
+function change() {
+  clampW(); refreshFields(); $$('.lu').forEach(e => e.textContent = st.lu);
+  showResults(); drawPlots(); saveHash();
+  clearTimeout(refineTimer); requestSolve(1);
+}
+
+// ---------- validation sweep ----------
+function runVal() {
+  $('#valBtn').disabled = true; $('#valNote').textContent = 'Running…';
+  const id = post({ type: 'val', ers: [2.2, 4.4, 9.8, 12.9], us: [0.1, 0.3, 1, 3, 10] });
+  handlers[id] = r => {
+    let s = '<thead><tr><th>εr</th><th>w/h</th><th>H–J Z0</th><th>FD default</th><th>FD refined</th><th>Δ refined</th><th>Δ εeff</th></tr></thead><tbody>';
+    let worst = 0;
+    for (const x of r.rows) {
+      const d1 = 100 * (x.z1 / x.zh - 1), d2 = 100 * (x.z2 / x.zh - 1), de = 100 * (x.e2 / x.eh - 1); worst = Math.max(worst, Math.abs(d2));
+      s += `<tr><td>${x.er}</td><td>${x.u}</td><td>${x.zh.toFixed(2)}</td><td>${x.z1.toFixed(2)} <small>(${d1.toFixed(2)}%)</small></td><td>${x.z2.toFixed(2)}</td><td class="${Math.abs(d2) < 1 ? 'pass' : 'fail'}">${d2.toFixed(2)}%</td><td>${de.toFixed(2)}%</td></tr>`;
+    }
+    $('#valTable').innerHTML = s + '</tbody>';
+    $('#valNote').textContent = `Done in ${(r.ms / 1000).toFixed(1)} s. Worst Z0 difference on the refined grid: ${worst.toFixed(2)}%.`;
+    $('#valBtn').disabled = false;
+  };
+}
+$('#valBtn').addEventListener('click', runVal);
+
+Theme.on(() => { offKey = ''; draw(); showResults(); drawPlots(); });
+onResize(cv, draw);
+onResize($('#pZ'), drawPlots);
+showLayers();
+change();
+</script>
+</body>
+</html>

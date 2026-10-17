@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--@HEAD-->
+<title>Path Loss and Link Budget</title>
+<meta name="description" content="Free-space path loss with a live picture of spherical spreading and antenna aperture, plus a full link budget with ITU-R P.838 rain attenuation.">
+<style>
+#cvS { aspect-ratio: 2.1 / 1; display: block; width: 100%; }
+@media (max-width: 640px) { #cvS { aspect-ratio: 1.25 / 1; } }
+#pW { aspect-ratio: 16 / 10; }
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="index.html">&larr; Visual calculators</a><button class="btn" id="themeBtn" type="button">Dark</button></div>
+<main class="wrap">
+  <header class="hero">
+    <p class="eyebrow">Visual calculator 05 &middot; Propagation</p>
+    <h1>Path loss and link budget</h1>
+    <p class="lede">Power spreads over a sphere. The receiver catches only its effective aperture. That aperture, not the air, is where the frequency dependence comes from.</p>
+  </header>
+
+  <section class="calc" aria-label="Calculator">
+    <div class="card">
+      <div class="vbar">
+        <div class="row"><span class="lbl">Rx antenna</span>
+          <div class="seg" id="rxSeg" role="group" aria-label="Receive antenna model"><button type="button" data-v="gain">Fixed gain</button><button type="button" data-v="ap">Fixed aperture</button></div></div>
+        <button class="btn" id="play" type="button">Pause</button>
+      </div>
+      <canvas id="cvS" role="img" aria-label="Spherical spreading from the transmitter to the receive aperture"></canvas>
+      <div class="legend" id="legend"></div>
+      <p class="caption" id="caption" aria-live="polite"></p>
+    </div>
+
+    <div class="card pad">
+      <div class="grp">
+        <div class="lbl" id="preLbl">Example links (illustrative)</div>
+        <div class="chips" id="preChips" role="group" aria-labelledby="preLbl"></div>
+      </div>
+      <div class="grp">
+        <div class="field"><label for="fN">Frequency <span class="u" id="fU"></span></label>
+          <div class="slide"><input type="range" id="fR" aria-label="Frequency slider"><input type="number" id="fN" step="any"></div></div>
+        <div class="field"><label for="dN">Distance <span class="u" id="dU"></span></label>
+          <div class="slide"><input type="range" id="dR" aria-label="Distance slider"><input type="number" id="dN" step="any"></div></div>
+        <div class="row">
+          <div class="seg" id="fuSeg" role="group" aria-label="Frequency unit"><button type="button" data-v="MHz">MHz</button><button type="button" data-v="GHz">GHz</button></div>
+          <div class="seg" id="duSeg" role="group" aria-label="Distance unit"><button type="button" data-v="m">m</button><button type="button" data-v="km">km</button></div>
+        </div>
+      </div>
+      <div class="grp">
+        <div class="two">
+          <div class="field"><label for="ptN">Tx power <span class="u">dBm</span></label><input type="number" id="ptN" step="any"></div>
+          <div class="field"><label for="gtN">Tx gain <span class="u">dBi</span></label><input type="number" id="gtN" step="any"></div>
+          <div class="field"><label for="ltN">Tx line loss <span class="u">dB</span></label><input type="number" id="ltN" step="any" min="0"></div>
+          <div class="field"><label for="lrN">Rx line loss <span class="u">dB</span></label><input type="number" id="lrN" step="any" min="0"></div>
+          <div class="field" id="grF"><label for="grN">Rx gain <span class="u">dBi</span></label><input type="number" id="grN" step="any"></div>
+          <div class="field" id="dsF"><label for="dsN">Rx dish diameter <span class="u">m</span></label><input type="number" id="dsN" step="any" min="0.01"></div>
+          <div class="field" id="etF"><label for="etN">Aperture efficiency</label><input type="number" id="etN" step="any" min="0.05" max="1"></div>
+          <div class="field"><label for="snN">Rx sensitivity <span class="u">dBm</span></label><input type="number" id="snN" step="any"></div>
+        </div>
+      </div>
+      <div class="grp">
+        <div class="two">
+          <div class="field"><label for="rrN">Rain rate <span class="u">mm/h</span></label><input type="number" id="rrN" step="any" min="0" max="300"></div>
+          <div class="field"><label for="rkN">Path in rain <span class="u">km</span></label><input type="number" id="rkN" step="any" min="0"></div>
+          <div class="field"><label for="elN">Elevation <span class="u">deg</span></label><input type="number" id="elN" step="any" min="0" max="90"></div>
+          <div class="field"><label for="gaN">Gases, total <span class="u">dB</span></label><input type="number" id="gaN" step="any" min="0"></div>
+        </div>
+        <div class="row"><span class="lbl">Polarization</span><div class="seg" id="polSeg" role="group" aria-label="Polarization"><button type="button" data-v="0">H</button><button type="button" data-v="90">V</button><button type="button" data-v="45">Circular</button></div></div>
+      </div>
+      <div class="readout" id="out"></div>
+    </div>
+  </section>
+
+  <section class="plots" aria-label="Plots">
+    <div class="card plot">
+      <h3>Link budget</h3>
+      <p class="sub">Each bar adds or removes dB. The last bar is the received power.</p>
+      <canvas id="pW" role="img" aria-label="Link budget waterfall"></canvas>
+      <div class="legend" id="lgW"></div>
+    </div>
+    <div class="card plot">
+      <h3>Received power vs frequency</h3>
+      <p class="sub">Free space only. All three curves pass through this design.</p>
+      <canvas id="pF" role="img" aria-label="Received power versus frequency for three antenna assumptions"></canvas>
+      <div class="legend" id="lgF"></div>
+    </div>
+  </section>
+
+  <section class="card pad check" id="check" aria-labelledby="chkH">
+    <h2 id="chkH">Check</h2>
+    <div class="cols">
+      <div class="grp">
+        <p class="lbl">Method</p>
+<div class="eq">FSPL = (4π d / λ)²              isotropic antennas
+Pr   = Pt Gt Gr (λ / 4π d)²      Friis
+Ae   = G λ² / 4π,   dish: G = η (π D / λ)²
+S    = EIRP / (4π d²),  E = √(S η0)
+r1   = √(λ d1 d2 / (d1 + d2))   first Fresnel zone
+rain: γ = k R^α  (ITU-R P.838-3), A = γ · path in rain
+Pr = Pt − Ltx + Gt − FSPL − Agas − Arain − Lother + Gr − Lrx</div>
+        <p class="note">Far field, line of sight, matched polarization, no multipath. Gas absorption is an input (take it from ITU-R P.676). Rain uses the P.838-3 coefficients with polarization tilt and elevation (eqs. 4–5); path reduction factors (P.530, P.618) are left to you through the "path in rain" length.</p>
+      </div>
+      <div class="grp">
+        <p class="lbl">Reference values</p>
+        <div class="tblwrap"><table class="ref" id="refTable"></table></div>
+      </div>
+    </div>
+    <ol class="refs">
+      <li>H. T. Friis, "A note on a simple transmission formula," Proc. IRE 34(5), 1946, pp. 254–256.</li>
+      <li>ITU-R P.525-4, Calculation of free-space attenuation, 2019.</li>
+      <li>ITU-R P.838-3, Specific attenuation model for rain for use in prediction methods, 2005 (coefficients, Tables 1–5).</li>
+      <li>C. A. Balanis, <i>Antenna Theory</i>, 4th ed., Wiley, 2016, Sec. 2.15–2.17 (effective aperture, Friis).</li>
+    </ol>
+  </section>
+
+  <footer class="foot"><span>Made by Ben Hardy</span><span>MIT licence</span><a href="index.html">All calculators</a></footer>
+</main>
+
+<!--@CORE core-fspl.js-->
+<!--@COMMONJS-->
+<script>
+const L = LinkCore;
+const PRESETS = {
+  wifi: { name: 'Wi-Fi · 2.4 GHz · 100 m', f: 2.437e9, d: 100, pt: 20, gt: 2, ltx: 1, gr: 2, lrx: 1, sens: -80, rr: 0, rk: 0, el: 0, ga: 0, rx: 'gain', ds: 0.1, et: 0.6 },
+  ptp: { name: '5.8 GHz link · 10 km', f: 5.8e9, d: 10e3, pt: 27, gt: 23, ltx: 0.5, gr: 23, lrx: 0.5, sens: -80, rr: 25, rk: 10, el: 0, ga: 0.1, rx: 'gain', ds: 0.4, et: 0.6 },
+  eband: { name: 'E-band · 80 GHz · 2 km', f: 80e9, d: 2e3, pt: 15, gt: 43, ltx: 0, gr: 43, lrx: 0, sens: -60, rr: 50, rk: 2, el: 0, ga: 0.8, rx: 'gain', ds: 0.3, et: 0.6 },
+  geo: { name: 'Ku GEO downlink · 12 GHz', f: 12e9, d: 38000e3, pt: 50, gt: 32, ltx: 0, gr: 36, lrx: 0, sens: -100, rr: 25, rk: 4, el: 40, ga: 0.3, rx: 'ap', ds: 0.6, et: 0.65 },
+};
+const F_MIN = 100e6, F_MAX = 100e9, D_MIN = 1, D_MAX = 4e7;
+const H = Hash.read();
+const st = Object.assign({}, PRESETS.ptp, { p: 'ptp', pol: '90', fu: 'GHz', du: 'km' });
+if (PRESETS[H.p]) Object.assign(st, PRESETS[H.p], { p: H.p });
+for (const k of ['f', 'd', 'pt', 'gt', 'ltx', 'gr', 'lrx', 'sens', 'rr', 'rk', 'el', 'ga', 'ds', 'et']) if (H[k] !== undefined && isFinite(parseFloat(H[k]))) st[k] = parseFloat(H[k]);
+if (H.rx === 'ap' || H.rx === 'gain') st.rx = H.rx;
+if (['0', '90', '45'].includes(H.pol)) st.pol = H.pol;
+if (H.p === 'custom') st.p = 'custom';
+if (H.fu === 'MHz') st.fu = 'MHz'; if (H.du === 'm') st.du = 'm';
+st.f = Math.min(F_MAX, Math.max(F_MIN, st.f)); st.d = Math.min(D_MAX, Math.max(D_MIN, st.d));
+
+let B = {}, Aref = 0, refDirty = true;   // Aref: aperture at the last design change (frequency moves do not reset it)
+function grDb(f = st.f) { return st.rx === 'ap' ? L.db(L.dishGain(st.ds, f, st.et)) : st.gr; }
+function derive() {
+  const gr = grDb();
+  B = L.budget({ pt_dBm: st.pt, ltx: st.ltx, gt: st.gt, f: st.f, d: st.d, gas_dBkm: 0, rainR: st.rr, rainKm: st.rk, tilt: +st.pol, elev: st.el, misc: st.ga, gr, lrx: st.lrx, sens: st.sens });
+  B.steps.find(s => s.k === 'misc').label = 'Gases';
+  B.steps = B.steps.filter(s => s.k !== 'gas');
+  B.gr = gr; B.ae = L.aperture(L.undb(gr), st.f);
+  B.gamma = st.rr > 0 ? L.rainGamma(st.f / 1e9, st.rr, +st.pol, st.el) : 0;
+  const eirpW = L.undb(B.eirp) / 1000;
+  B.S = L.density(eirpW, st.d); B.E = L.eField(eirpW, st.d); B.r1 = L.fresnel1(st.d / 2, st.d / 2, st.f);
+  B.frac = B.ae / (4 * Math.PI * st.d * st.d);
+  if (refDirty || !(Aref > 0)) { Aref = B.ae; refDirty = false; }
+}
+
+Theme.init();
+const pc = $('#preChips');
+for (const [k, P] of Object.entries(PRESETS)) pc.insertAdjacentHTML('beforeend', `<button type="button" data-v="${k}">${P.name}</button>`);
+$$('button', pc).forEach(b => b.addEventListener('click', () => { Object.assign(st, PRESETS[b.dataset.v], { p: b.dataset.v }); refDirty = true; st.du = st.d >= 1000 ? 'km' : 'm'; update(); }));
+Fields.push({ show: () => $$('button', pc).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === st.p))) });
+const cu = () => { st.p = 'custom'; };
+const DU = { m: 1, km: 1e3 };
+bindRange($('#fR'), { min: F_MIN, max: F_MAX, log: true, get: () => st.f, set: v => { st.f = v; cu(); }, text: v => fmtSI(v, 'Hz'), onchange: update });
+bindNumber($('#fN'), { kind: 'freq', units: () => st.fu, get: () => st.f, set: v => { st.f = v; cu(); }, min: F_MIN, max: F_MAX, onchange: update });
+bindRange($('#dR'), { min: D_MIN, max: D_MAX, log: true, get: () => st.d, set: v => { st.d = v; cu(); }, text: v => fmtSI(v, 'm'), onchange: update });
+bindNumber($('#dN'), { get: () => st.d / DU[st.du], set: v => { st.d = v * DU[st.du]; cu(); }, min: D_MIN / 1e3, max: D_MAX, onchange: update });
+const numF = (id, k, o = {}) => bindNumber($(id), Object.assign({ get: () => st[k], set: v => { st[k] = v; cu(); }, onchange: update }, o));
+numF('#ptN', 'pt', { min: -100, max: 100 }); numF('#gtN', 'gt', { min: -30, max: 80 }); numF('#ltN', 'ltx', { min: 0, max: 100 }); numF('#lrN', 'lrx', { min: 0, max: 100 });
+numF('#grN', 'gr', { min: -30, max: 80, onchange: () => { refDirty = true; update(); } }); numF('#dsN', 'ds', { min: 0.01, max: 100, onchange: () => { refDirty = true; update(); } }); numF('#etN', 'et', { min: 0.05, max: 1, onchange: () => { refDirty = true; update(); } }); numF('#snN', 'sens', { min: -200, max: 50 });
+numF('#rrN', 'rr', { min: 0, max: 300 }); numF('#rkN', 'rk', { min: 0, max: 1e5 }); numF('#elN', 'el', { min: 0, max: 90 }); numF('#gaN', 'ga', { min: 0, max: 500 });
+bindSeg($('#fuSeg'), () => st.fu, v => { st.fu = v; update(); });
+bindSeg($('#duSeg'), () => st.du, v => { st.du = v; update(); });
+bindSeg($('#rxSeg'), () => st.rx, v => { if (v === 'ap' && st.rx === 'gain') { st.ds = Math.sqrt(4 * L.aperture(L.undb(st.gr), st.f) / (Math.PI * st.et)); } if (v === 'gain' && st.rx === 'ap') st.gr = grDb(); st.rx = v; cu(); update(); });  // aperture reference kept: the bar shows how the two models diverge with frequency
+bindSeg($('#polSeg'), () => st.pol, v => { st.pol = v; cu(); update(); });
+bindPlay($('#play'));
+
+const OUT = [['fspl', 'Free-space path loss', true], ['pr', 'Received power'], ['mg', 'Margin'], ['eirp', 'EIRP'], ['gr', 'Rx gain · Ae'],
+  ['rain', 'Rain γ · total'], ['s', 'Power density at d'], ['e', 'E-field at d (rms)'], ['r1', 'Fresnel radius, midpoint']];
+$('#out').innerHTML = OUT.map(([k, l, big]) => `<div class="${big ? 'big' : ''}"><span>${l}</span><b id="o-${k}"></b></div>`).join('');
+
+// ---------- spreading picture (schematic) ----------
+const cv = $('#cvS');
+function drawS(t) {
+  const { ctx, w, h } = fitCanvas(cv), C = Theme.c; ctx.clearRect(0, 0, w, h);
+  const tx = Math.max(36, w * 0.06), cy = h * 0.54, rx = w - Math.max(70, w * 0.16), D = rx - tx;
+  // aperture bar: height proportional to the linear size sqrt(Ae), referenced to the dish of the fixed-aperture model
+  const hap = Math.max(4, Math.min(h * 0.8, h * 0.34 * Math.sqrt(B.ae / Aref)));
+  const clipped = h * 0.34 * Math.sqrt(B.ae / Aref) > h * 0.8;
+  // captured wedge
+  ctx.fillStyle = rgbStr(Theme.c.rgb.field, 0.12);
+  ctx.beginPath(); ctx.moveTo(tx, cy); ctx.lineTo(rx, cy - hap / 2); ctx.lineTo(rx, cy + hap / 2); ctx.closePath(); ctx.fill();
+  // shells: opacity ~ 1/r^2 (power density), moving outward
+  const sp = Math.max(22, D / 9), off = (t * 28) % sp;
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.clip();
+  for (let r = off; r < D * 1.25; r += sp) {
+    if (r < 6) continue;
+    const a = Math.min(1, Math.pow(sp / r, 2) * 1.6) * 0.85 + 0.08;
+    ctx.strokeStyle = rgbStr(Theme.c.rgb.field, a); ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.arc(tx, cy, r, -Math.PI / 2.2, Math.PI / 2.2); ctx.stroke();
+  }
+  ctx.restore();
+  // transmitter
+  ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(tx, cy, 5, 0, 2 * Math.PI); ctx.fill();
+  ctx.font = `600 11px ${C.mono}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText('Tx', tx, cy + 22); ctx.fillStyle = C.muted; ctx.font = `500 11px ${C.mono}`; ctx.fillText(fmt(B.eirp, 4) + ' dBm EIRP', tx + 30, cy - h * 0.38);
+  // receiver aperture
+  ctx.strokeStyle = C.metal; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(rx, cy - hap / 2); ctx.lineTo(rx, cy + hap / 2); ctx.stroke(); ctx.lineCap = 'butt';
+  ctx.fillStyle = C.ink; ctx.font = `600 11px ${C.mono}`; ctx.textAlign = 'left';
+  ctx.fillText('Rx', rx + 10, cy - 4);
+  ctx.fillStyle = C.muted; ctx.font = `500 11px ${C.mono}`;
+  ctx.fillText('Ae = ' + fmtSI(B.ae, 'm²', 3).replace(' mm²', ' mm²'), rx + 10, cy + 12);
+  ctx.fillText('G = ' + fmt(B.gr, 4) + ' dBi', rx + 10, cy + 27);
+  if (clipped) ctx.fillText('(bar clipped)', rx + 10, cy + 42);
+  // distance line
+  ctx.strokeStyle = C.muted; ctx.lineWidth = 1; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(tx, h - 18); ctx.lineTo(rx, h - 18); ctx.stroke(); ctx.setLineDash([]);
+  ctx.textAlign = 'center'; ctx.fillStyle = C.muted; ctx.fillText('d = ' + fmtSI(st.d, 'm', 4) + '  ·  schematic, not to scale', (tx + rx) / 2, h - 6);
+  // density labels at two radii
+  ctx.textAlign = 'left'; ctx.fillStyle = C.ink;
+  ctx.fillText('S ∝ 1/r²', tx + D * 0.22, cy - D * 0.22 * 0.9 - 6 > 14 ? cy - Math.min(h * 0.4, D * 0.2) : 16);
+  ctx.textAlign = 'right'; ctx.fillStyle = C.ink; ctx.font = `600 12px ${C.body}`;
+  ctx.fillText(`Rx catches Ae / 4πd² = ${fmt(10 * Math.log10(B.frac), 4)} dB of the EIRP`, w - 10, 18);
+}
+
+// ---------- waterfall ----------
+function drawW() {
+  const cvW = $('#pW'), { ctx, w, h } = fitCanvas(cvW), C = Theme.c; ctx.clearRect(0, 0, w, h);
+  const steps = B.steps.concat([{ k: 'pr', label: 'Received', from: 0, to: B.pr, abs: true, v: B.pr }]);
+  const lv = steps.flatMap(s => [s.from, s.to]).concat([st.sens]), hiV = Math.max(...steps.filter(s => !s.abs || s.k === 'pt').map(s => Math.max(s.from, s.to)), st.sens) + 8, loV = Math.min(...steps.map(s => Math.min(s.abs ? s.to : s.from, s.to)), st.sens) - 8;
+  const small = w < 460, m = { l: small ? 40 : 52, r: 12, t: 14, b: small ? 54 : 46 }, pw = w - m.l - m.r, ph = h - m.t - m.b;
+  const sy = v => m.t + (hiV - v) / (hiV - loV) * ph;
+  ctx.font = `500 ${small ? 10 : 11}px ${C.mono}`; ctx.textBaseline = 'middle'; ctx.textAlign = 'right'; ctx.fillStyle = C.muted;
+  for (const v of niceTicks(loV, hiV, 6)) { const y = Math.round(sy(v)) + 0.5; ctx.strokeStyle = C.grid; ctx.beginPath(); ctx.moveTo(m.l, y); ctx.lineTo(m.l + pw, y); ctx.stroke(); ctx.fillText(fmt(v), m.l - 6, y); }
+  ctx.save(); ctx.translate(11, m.t + ph / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.fillText('dBm', 0, 0); ctx.restore();
+  const n = steps.length, bw = pw / n;
+  steps.forEach((s, i) => {
+    const x = m.l + i * bw + bw * 0.16, ww = bw * 0.68;
+    const y0 = s.abs ? sy(loV) : sy(s.from), y1 = sy(s.to);
+    ctx.fillStyle = s.abs ? (s.k === 'pr' ? (B.margin >= 0 ? C.ok : C.bad) : C.ink) : (s.v >= 0 ? C.hfield : C.field);
+    if (Math.abs(y1 - y0) < 1.5 && !s.abs) { ctx.fillRect(x, y1 - 0.75, ww, 1.5); } else ctx.fillRect(x, Math.min(y0, y1), ww, Math.max(1.5, Math.abs(y1 - y0)));
+    if (i < n - 1 && !steps[i + 1].abs) { ctx.strokeStyle = C.muted; ctx.setLineDash([2, 2]); ctx.beginPath(); ctx.moveTo(x + ww, y1); ctx.lineTo(x + bw, y1); ctx.stroke(); ctx.setLineDash([]); }
+    ctx.fillStyle = C.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    const val = s.abs ? fmt(s.to, 4) : (s.v >= 0 ? '+' : '−') + fmt(Math.abs(s.v), 3);
+    ctx.fillText(val, x + ww / 2, Math.min(y0, y1) - 4 < m.t + 8 ? Math.max(y0, y1) + 12 : Math.min(y0, y1) - 4);
+    ctx.save(); ctx.translate(x + ww / 2, h - m.b + 10); ctx.rotate(small ? -Math.PI / 4 : 0); ctx.fillStyle = C.muted; ctx.textAlign = small ? 'right' : 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(s.label, 0, 0); ctx.restore();
+  });
+  const ys = sy(st.sens); ctx.strokeStyle = C.ink; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.moveTo(m.l, ys); ctx.lineTo(m.l + pw, ys); ctx.stroke(); ctx.setLineDash([]);
+  
+  $('#lgW').innerHTML = `<span><i class="box" style="background:${C.hfield}"></i>gain</span><span><i class="box" style="background:${C.field}"></i>loss</span><span><i class="dash" style="color:${C.ink}"></i>sensitivity ${fmt(st.sens, 4)} dBm</span><span><i class="box" style="background:${B.margin >= 0 ? C.ok : C.bad}"></i>received, margin ${B.margin >= 0 ? '+' : ''}${fmt(B.margin, 3)} dB</span>`;
+}
+
+// ---------- Pr vs f ----------
+function drawF() {
+  const C = Theme.c, Pt = st.pt - st.ltx - st.lrx, gt = L.undb(st.gt), gr = L.undb(B.gr);
+  const At = L.aperture(gt, st.f), Ar = L.aperture(gr, st.f), a = [], b = [], c = [];
+  for (let i = 0; i <= 200; i++) {
+    const f = F_MIN * Math.pow(F_MAX / F_MIN, i / 200), fs = L.fsplDb(st.d, f);
+    a.push([f, Pt + st.gt + B.gr - fs]);
+    b.push([f, Pt + st.gt + L.db(L.gainFromAperture(Ar, f)) - fs]);
+    c.push([f, Pt + L.db(L.gainFromAperture(At, f)) + L.db(L.gainFromAperture(Ar, f)) - fs]);
+  }
+  const p0 = Pt + st.gt + B.gr - B.fspl;
+  drawPlot($('#pF'), { x: { min: F_MIN, max: F_MAX, log: true, label: 'frequency (Hz)', fmt: v => fmtSI(v, '').replace(' ', '') }, y: { min: p0 - 70, max: p0 + 70, label: 'Pr, free space (dBm)' },
+    series: [{ pts: a, color: C.field, width: 2.2 }, { pts: b, color: C.ink, width: 2.2, dash: [6, 3] }, { pts: c, color: C.hfield, width: 2.2 }],
+    points: [{ x: st.f, y: p0, color: C.ink, label: fmt(p0, 4) + ' dBm' }] });
+  $('#lgF').innerHTML = `<span><i style="color:${C.field}"></i>fixed gain both ends (−20 dB/dec)</span><span><i class="dash" style="color:${C.ink}"></i>fixed Rx aperture (flat)</span><span><i style="color:${C.hfield}"></i>fixed aperture both ends (+20 dB/dec)</span>`;
+}
+
+function fillCheck() {
+  const rows = [];
+  rows.push(['FSPL, 1 km, 1 GHz (dB)', L.fsplDb(1e3, 1e9), 92.45, 0.01]);
+  rows.push(['FSPL, 100 m, 2.4 GHz (dB)', L.fsplDb(100, 2.4e9), 80.05, 0.01]);
+  rows.push(['FSPL, 35 786 km, 12 GHz (dB)', L.fsplDb(35786e3, 12e9), 205.10, 0.01]);
+  for (const [f, kH, aH, kV, aV] of [[12, 0.02386, 1.1825, 0.02455, 1.1216], [20, 0.09164, 1.0568, 0.09611, 0.9847], [30, 0.2403, 0.9485, 0.2291, 0.9129], [60, 0.8606, 0.7656, 0.8515, 0.7486], [80, 1.1704, 0.7115, 1.1668, 0.7021]]) {
+    const q = L.rainCoeffs(f);
+    rows.push([`P.838 kH, ${f} GHz`, q.kH, kH, 0.003 * kH]); rows.push([`P.838 αH, ${f} GHz`, q.aH, aH, 0.002 * aH]);
+    rows.push([`P.838 kV, ${f} GHz`, q.kV, kV, 0.003 * kV]); rows.push([`P.838 αV, ${f} GHz`, q.aV, aV, 0.002 * aV]);
+  }
+  let s = '<thead><tr><th>case</th><th>this page</th><th>reference</th><th></th></tr></thead><tbody>';
+  for (const [k, v, r, tol] of rows) { const ok = Math.abs(v - r) <= tol; s += `<tr><td>${k}</td><td>${fmt(v, 5)}</td><td>${r}</td><td class="${ok ? 'pass' : 'fail'}">${ok ? 'pass' : 'fail'}</td></tr>`; }
+  $('#refTable').innerHTML = s + '</tbody><caption class="note" style="caption-side:bottom;text-align:left;padding-top:6px">FSPL references from 20 log10(4π d f / c) (ITU-R P.525: 32.45 + 20 log f[MHz] + 20 log d[km]); rain coefficients from P.838-3 Table 5.</caption>';
+}
+
+function update() {
+  derive();
+  $('#fU').textContent = st.fu; $('#dU').textContent = st.du;
+  $('#grF').hidden = st.rx === 'ap'; $('#dsF').hidden = st.rx !== 'ap'; $('#etF').hidden = st.rx !== 'ap';
+  refreshFields();
+  $('#o-fspl').textContent = fmt(B.fspl, 5) + ' dB';
+  $('#o-pr').textContent = fmt(B.pr, 4) + ' dBm';
+  $('#o-mg').textContent = `${B.margin >= 0 ? '+' : ''}${fmt(B.margin, 3)} dB`; $('#o-mg').style.color = B.margin >= 0 ? 'var(--ok)' : 'var(--bad)';
+  $('#o-eirp').textContent = fmt(B.eirp, 4) + ' dBm';
+  $('#o-gr').textContent = `${fmt(B.gr, 4)} dBi · ${fmtSI(B.ae, 'm²', 3)}`;
+  $('#o-rain').textContent = st.rr > 0 ? `${fmt(B.gamma, 3)} dB/km · ${fmt(B.rain, 3)} dB` : '—';
+  $('#o-s').textContent = fmtSI(B.S, 'W/m²', 3);
+  $('#o-e').textContent = fmtSI(B.E, 'V/m', 3);
+  $('#o-r1').textContent = fmtSI(B.r1, 'm', 3);
+  const C = Theme.c;
+  $('#legend').innerHTML = `<span><i style="color:${C.field}"></i>wavefronts, fading as power density 1/r²</span><span><i class="box" style="background:${rgbStr(Theme.c.rgb.field, 0.25)}"></i>share caught by the Rx aperture</span><span><i style="color:${C.metal}"></i>Rx effective aperture</span>`;
+  $('#caption').textContent = st.rx === 'gain'
+    ? `A fixed-gain antenna has Ae = Gλ²/4π: its aperture shrinks as frequency rises. That is the 20 log f in the path loss.`
+    : `A fixed aperture keeps catching the same area. Its gain grows as f², which cancels the 20 log f of the path loss.`;
+  drawS(Clock.t); drawW(); drawF();
+  Hash.write({ p: st.p, f: st.f, d: st.d, pt: st.pt, gt: st.gt, ltx: st.ltx, gr: st.gr, lrx: st.lrx, sens: st.sens, rr: st.rr, rk: st.rk, el: st.el, ga: st.ga, rx: st.rx, ds: st.ds, et: st.et, pol: st.pol, fu: st.fu, du: st.du });
+}
+Clock.on(drawS);
+Theme.on(update);
+onResize(cv, () => drawS(Clock.t));
+onResize($('#pW'), () => { drawW(); drawF(); });
+fillCheck();
+update();
+</script>
+</body>
+</html>

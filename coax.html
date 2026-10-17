@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Public+Sans:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* ---- shared tokens and layout (identical block in every calculator; edit src/common.css and rebuild) ---- */
+:root {
+  --bg: #F1F4F7; --surface: #FFFFFF; --ink: #142230; --muted: #586678; --line: #D5DCE5; --grid: #E4E9EF;
+  --field: #D9472B; --hfield: #2B6CB0; --ok: #2A7F50; --bad: #C0392B; --warn: #B85A0B; --accent: #2160A8;
+  --metal: #B87333; --metal-hi: #D9A066; --diel: #E2EBF4; --diel-edge: #B9CADC;
+  --seq0: #FFFFFF; --seq1: #F6C890; --seq2: #E0602F; --seq3: #7A1B2E;
+  --display: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
+  --body: "Public Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D131A; --surface: #141C26; --ink: #E3E9EF; --muted: #98A4B2; --line: #2A3644; --grid: #1F2B39;
+    --field: #FF8A5C; --hfield: #6FB0F0; --ok: #6BCB93; --bad: #FF8A80; --warn: #F0A050; --accent: #6FA8EA;
+    --metal: #C98A52; --metal-hi: #E8B27C; --diel: #1A2735; --diel-edge: #34485E;
+    --seq0: #141C26; --seq1: #5E1F3C; --seq2: #D9472B; --seq3: #FFD98A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D131A; --surface: #141C26; --ink: #E3E9EF; --muted: #98A4B2; --line: #2A3644; --grid: #1F2B39;
+  --field: #FF8A5C; --hfield: #6FB0F0; --ok: #6BCB93; --bad: #FF8A80; --warn: #F0A050; --accent: #6FA8EA;
+  --metal: #C98A52; --metal-hi: #E8B27C; --diel: #1A2735; --diel-edge: #34485E;
+  --seq0: #141C26; --seq1: #5E1F3C; --seq2: #D9472B; --seq3: #FFD98A;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.55 var(--body); margin: 0; overflow-x: hidden; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.08; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(2rem, 4.6vw, 3rem); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: clamp(1.3rem, 2.6vw, 1.6rem); font-weight: 800; letter-spacing: -0.01em; }
+h3 { font-size: 1.05rem; font-weight: 600; }
+p { margin: 0; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+button { font-family: var(--body); }
+[hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.eyebrow { font: 600 0.72rem/1.2 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 1.05rem; color: var(--muted); max-width: 64ch; }
+.note { font-size: 0.86rem; color: var(--muted); }
+
+.topbar { max-width: 1240px; margin: 0 auto; padding: 14px 20px 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.topbar a.home { font: 600 0.78rem/1 var(--mono); letter-spacing: 0.06em; color: var(--muted); text-decoration: none; padding: 8px 0; }
+.topbar a.home:hover { color: var(--ink); }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 12px 20px 56px; display: grid; gap: 24px; }
+.hero { display: grid; gap: 8px; }
+
+.calc { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 980px) { .calc { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
+.pad { padding: 16px 18px; display: grid; gap: 12px; align-content: start; }
+.vbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.stage { position: relative; width: 100%; }
+.stage canvas { display: block; width: 100%; height: 100%; }
+.stage .tag { position: absolute; left: 12px; top: 10px; font: 600 0.72rem/1.3 var(--mono); color: var(--muted); pointer-events: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 10px 12px; border-top: 1px solid var(--line); font: 500 0.78rem/1.3 var(--mono); color: var(--muted); align-items: center; }
+.legend i { display: inline-block; width: 16px; height: 0; border-top: 2.5px solid currentColor; vertical-align: middle; margin-right: 5px; }
+.legend i.dash { border-top-style: dashed; }
+.legend i.box { width: 12px; height: 12px; border: 0; border-radius: 2px; vertical-align: -2px; }
+.legend .ramp { display: inline-block; width: 64px; height: 10px; border-radius: 2px; vertical-align: -1px; margin: 0 5px; }
+.caption { padding: 10px 12px 12px; font-size: 0.9rem; border-top: 1px solid var(--line); color: var(--ink); }
+
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: 600 0.8rem/1 var(--body); padding: 9px 11px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.btn { font: 600 0.84rem/1 var(--body); padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.btn[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chips button { font: 500 0.8rem/1 var(--body); padding: 8px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.chips button:hover { border-color: var(--ink); }
+.chips button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+.grp { display: grid; gap: 10px; }
+.grp + .grp { border-top: 1px solid var(--line); padding-top: 12px; }
+.lbl { font: 600 0.68rem/1.2 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field > label, .field > .lbl { font: 600 0.68rem/1.2 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.field label .u { text-transform: none; letter-spacing: 0; }
+.slide { display: grid; grid-template-columns: minmax(0, 1fr) 92px; gap: 8px; align-items: center; }
+input[type=range] { width: 100%; accent-color: var(--ink); margin: 0; min-width: 0; height: 28px; }
+input[type=number], select { font: 400 0.92rem/1.2 var(--mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 8px; width: 100%; min-width: 0; }
+input[type=number]:invalid { border-color: var(--bad); }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+
+.readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; }
+.readout div { background: var(--bg); border-radius: 8px; padding: 8px 10px; min-width: 0; }
+.readout span { display: block; font: 600 0.62rem/1.25 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.readout b { display: block; font: 600 1rem/1.3 var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.readout .big { grid-column: 1 / -1; }
+.readout .big b { font-size: 1.5rem; }
+.readout small { font: 500 0.72rem/1.3 var(--mono); color: var(--muted); }
+
+.plots { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 18px; }
+.plot { display: grid; }
+.plot h3 { padding: 12px 14px 0; }
+.plot .sub { padding: 2px 14px 0; font-size: 0.84rem; color: var(--muted); }
+.plot canvas { display: block; width: 100%; aspect-ratio: 16 / 10; }
+
+.check { display: grid; gap: 12px; }
+.check .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 18px; align-items: start; }
+.eq { font: 500 0.84rem/1.6 var(--mono); background: var(--bg); border-radius: 8px; padding: 10px 12px; overflow-x: auto; white-space: pre; }
+table.ref { border-collapse: collapse; width: 100%; font: 500 0.8rem/1.35 var(--mono); font-variant-numeric: tabular-nums; }
+table.ref th, table.ref td { text-align: right; padding: 5px 6px; border-bottom: 1px solid var(--line); }
+table.ref th:first-child, table.ref td:first-child { text-align: left; }
+table.ref thead th { font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.tblwrap { overflow-x: auto; }
+.pass { color: var(--ok); font-weight: 700; } .fail { color: var(--bad); font-weight: 700; }
+.refs { margin: 0; padding-left: 18px; font-size: 0.84rem; color: var(--muted); display: grid; gap: 4px; }
+footer.foot { border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.84rem; color: var(--muted); }
+footer.foot a { color: var(--muted); }
+@media (max-width: 600px) {
+  .topbar { padding-inline: 16px; }
+  .wrap { padding-inline: 16px; gap: 20px; }
+  .pad { padding: 14px; }
+  .slide { grid-template-columns: minmax(0, 1fr) 84px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<title>Coax Line Calculator</title>
+<meta name="description" content="Coaxial line impedance, loss, TE11 cutoff and power handling, with live E and H fields and the classic 30, 60 and 77 ohm optima.">
+<style>
+.stage2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); align-items: center; }
+.stage2 canvas { display: block; width: 100%; }
+#cvA { aspect-ratio: 1 / 1; }
+#cvB { aspect-ratio: 5 / 4; }
+@media (max-width: 640px) { .stage2 { grid-template-columns: 1fr; } #cvA { aspect-ratio: 1 / 0.92; } #cvB { aspect-ratio: 16 / 10; } }
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="index.html">&larr; Visual calculators</a><button class="btn" id="themeBtn" type="button">Dark</button></div>
+<main class="wrap">
+  <header class="hero">
+    <p class="eyebrow">Visual calculator 02 &middot; Transmission lines</p>
+    <h1>Coaxial line</h1>
+    <p class="lede">The field lives between two conductors. Its shape sets the impedance, the loss, the power limit and the first higher mode.</p>
+  </header>
+
+  <section class="calc" aria-label="Calculator">
+    <div class="card">
+      <div class="vbar">
+        <div class="seg" id="modeSeg" role="group" aria-label="Mode"><button type="button" data-v="tem">TEM</button><button type="button" data-v="te11">TE11</button></div>
+        <button class="btn" id="play" type="button">Pause</button>
+      </div>
+      <div class="stage2">
+        <canvas id="cvA" role="img" aria-label="Coax cross-section with field lines"></canvas>
+        <canvas id="cvB" role="img" aria-label="Side view of the travelling wave"></canvas>
+      </div>
+      <div class="legend" id="legend"></div>
+      <p class="caption" id="caption" aria-live="polite"></p>
+    </div>
+
+    <div class="card pad">
+      <div class="grp">
+        <div class="lbl" id="preLbl">Preset</div>
+        <div class="chips" id="preChips" role="group" aria-labelledby="preLbl"></div>
+      </div>
+      <div class="grp">
+        <div class="field"><label for="rN">Ratio D / d <span class="u">(= b/a)</span></label>
+          <div class="slide"><input type="range" id="rR" aria-label="Diameter ratio slider"><input type="number" id="rN" step="any" min="1.05" max="20"></div></div>
+        <div class="two">
+          <div class="field"><label for="DN">Outer D <span class="u" id="DU"></span></label><input type="number" id="DN" step="any"></div>
+          <div class="field"><label for="dN">Inner d <span class="u" id="dU"></span></label><input type="number" id="dN" step="any"></div>
+        </div>
+        <div class="seg" id="luSeg" role="group" aria-label="Length unit"><button type="button" data-v="mm">mm</button><button type="button" data-v="mil">mil</button></div>
+      </div>
+      <div class="grp">
+        <div class="two">
+          <div class="field"><label for="erN">Dielectric εr</label><input type="number" id="erN" step="any" min="1" max="100"></div>
+          <div class="field"><label for="tdN">Loss tangent</label><input type="number" id="tdN" step="any" min="0" max="1"></div>
+        </div>
+        <div class="two">
+          <div class="field"><label for="rhoN">Conductor ρ <span class="u">µΩ·cm</span></label><input type="number" id="rhoN" step="any" min="0.5" max="1000"></div>
+          <div class="field"><label for="ebN">Breakdown <span class="u">kV/mm</span></label><input type="number" id="ebN" step="any" min="0.1" max="1000"></div>
+        </div>
+      </div>
+      <div class="grp">
+        <div class="field"><label for="fN">Frequency <span class="u" id="fU"></span></label>
+          <div class="slide"><input type="range" id="fR" aria-label="Frequency slider"><input type="number" id="fN" step="any"></div></div>
+        <div class="seg" id="fuSeg" role="group" aria-label="Frequency unit"><button type="button" data-v="MHz">MHz</button><button type="button" data-v="GHz">GHz</button></div>
+      </div>
+      <div class="readout" id="out"></div>
+    </div>
+  </section>
+
+  <section class="plots" aria-label="Plots">
+    <div class="card plot">
+      <h3>Why 50 Ω: the ratio trade-off</h3>
+      <p class="sub">Fixed outer diameter. Each curve peaks at its own optimum, labeled with its Z0 in this dielectric (30, 60 and 77 Ω in air).</p>
+      <canvas id="pS" role="img" aria-label="Normalized power, voltage and loss versus diameter ratio"></canvas>
+      <div class="legend" id="lgS"></div>
+    </div>
+    <div class="card plot">
+      <h3>Loss vs frequency</h3>
+      <p class="sub">Smooth conductors, skin-effect limit. Shaded: TE11 can propagate.</p>
+      <canvas id="pL" role="img" aria-label="Attenuation versus frequency"></canvas>
+      <div class="legend" id="lgL"></div>
+    </div>
+  </section>
+
+  <section class="card pad check" id="check" aria-labelledby="chkH">
+    <h2 id="chkH">Check</h2>
+    <div class="cols">
+      <div class="grp">
+        <p class="lbl">Method</p>
+<div class="eq">Z0   = (η0 / 2π√εr) · ln(b/a)        a = d/2, b = D/2
+Rs   = √(ωµ0 / 2σ)
+αc   = Rs (1/a + 1/b) / (4π Z0)       [Np/m]
+αd   = (π f √εr / c) · tan δ           [Np/m]
+E(r) = V / (r ln(b/a)),  max at r = a
+Pmax = (Ebd · a · ln(b/a))² / (2 Z0)   (peak, matched)
+TE11: J1′(x) Y1′(cx) − J1′(cx) Y1′(x) = 0,
+      x = kc·a, c = b/a  (smallest root)
+      approx. kc ≈ 2/(a+b)</div>
+        <p class="note">Conductor loss uses a smooth surface (no roughness) and the same metal for both conductors. Power is the peak-field limit only, not the thermal (average-power) limit.</p>
+      </div>
+      <div class="grp">
+        <p class="lbl">Reference values</p>
+        <div class="tblwrap"><table class="ref" id="refTable"></table></div>
+        <div class="tblwrap"><table class="ref" id="refTE"></table></div>
+      </div>
+    </div>
+    <ol class="refs">
+      <li>D. M. Pozar, <i>Microwave Engineering</i>, 4th ed., Wiley, 2012, Sec. 2.7 and 3.5 (coax line constants, loss, TE11).</li>
+      <li>N. Marcuvitz, <i>Waveguide Handbook</i>, MIT Rad. Lab. Series vol. 10, 1951, Sec. 2.4 (coaxial modes).</li>
+      <li>M. Abramowitz, I. A. Stegun, <i>Handbook of Mathematical Functions</i>, 1964, §9.1–9.2 (Bessel functions).</li>
+      <li>Cable data: Belden 8240 (RG-58/U); MIL-DTL-17 M17/130-RG402; Times Microwave LMR-400; IEC 61169-16 (N), IEC 61169-4 (7/16); IEEE Std 287 (3.5 mm, 2.4 mm air lines).</li>
+    </ol>
+  </section>
+
+  <footer class="foot"><span>Made by Ben Hardy</span><span>MIT licence</span><a href="index.html">All calculators</a></footer>
+</main>
+
+<script id="core">
+// Coaxial line core maths. Pure functions, no DOM. Tested by tests/coax.test.mjs.
+const CoaxCore = (() => {
+  const MU0 = 1.25663706212e-6, EPS0 = 8.8541878128e-12, C0 = 299792458;
+  const ETA0 = MU0 * C0;                       // 376.730... ohm
+  const NP2DB = 20 / Math.LN10;                // 8.686 dB per neper
+  const GAMMA = 0.5772156649015329;
+
+  // ---- real Bessel functions J0, J1, Y0, Y1 (series for x < 12, Hankel asymptotic above) ----
+  function bessel(x) {
+    if (x < 12) {
+      const q = -x * x / 4;
+      let t0 = 1, j0 = 1, t1 = 1, j1s = 1, y0s = 0, y1s = 0, H = 0;
+      // psi(k+1) = -gamma + H_k
+      let psi1 = -GAMMA, psi2 = -GAMMA + 1;   // psi(k+1), psi(k+2) at k = 0
+      y0s = psi1 * t0; y1s = (psi1 + psi2) * t1;
+      for (let k = 1; k < 80; k++) {
+        t0 *= q / (k * k);
+        t1 *= q / (k * (k + 1));
+        H += 1 / k;
+        psi1 = -GAMMA + H; psi2 = psi1 + 1 / (k + 1);
+        j0 += t0; j1s += t1;
+        y0s += psi1 * t0; y1s += (psi1 + psi2) * t1;
+        if (Math.abs(t0) < 1e-18 && Math.abs(t1) < 1e-18 && k > x) break;
+      }
+      const j1 = x / 2 * j1s;
+      const L = Math.log(x / 2);
+      const y0 = (2 / Math.PI) * L * j0 - (2 / Math.PI) * y0s;
+      const y1 = -2 / (Math.PI * x) + (2 / Math.PI) * L * j1 - (x / (2 * Math.PI)) * y1s;
+      return { j0, j1, y0, y1 };
+    }
+    const PQ = nu => {
+      const mu = 4 * nu * nu; let P = 1, Q = 0, term = 1, last = Infinity;
+      for (let k = 1; k < 40; k++) {
+        term *= (mu - (2 * k - 1) * (2 * k - 1)) / (k * 8 * x);
+        const m = Math.abs(term); if (m > last) break; last = m;
+        const sgn = (Math.floor(k / 2) % 2) ? -1 : 1;
+        if (k % 2) Q += sgn * term; else P += sgn * term;
+        if (m < 1e-17) break;
+      }
+      return [P, Q];
+    };
+    const pre = Math.sqrt(2 / (Math.PI * x));
+    const out = {};
+    for (const nu of [0, 1]) {
+      const w = x - nu * Math.PI / 2 - Math.PI / 4, [P, Q] = PQ(nu);
+      out['j' + nu] = pre * (P * Math.cos(w) - Q * Math.sin(w));
+      out['y' + nu] = pre * (P * Math.sin(w) + Q * Math.cos(w));
+    }
+    return out;
+  }
+  // derivatives of order 1: J1'(x) = J0 - J1/x, Y1'(x) = Y0 - Y1/x
+  function d1(x) { const B = bessel(x); return { j1: B.j1, y1: B.y1, dj1: B.j0 - B.j1 / x, dy1: B.y0 - B.y1 / x }; }
+
+  // ---- TEM line parameters ----
+  // a, b = inner conductor radius, outer conductor inner radius [m]
+  const z0 = (a, b, er) => ETA0 / (2 * Math.PI * Math.sqrt(er)) * Math.log(b / a);
+  const capPerM = (a, b, er) => 2 * Math.PI * EPS0 * er / Math.log(b / a);
+  const indPerM = (a, b) => MU0 / (2 * Math.PI) * Math.log(b / a);
+  const skinDepth = (rho, f) => Math.sqrt(rho / (Math.PI * f * MU0));
+  // Conductor loss (smooth walls, skin-effect limit): R' = Rs/(2 pi) (1/a + 1/b), alpha_c = R'/(2 Z0)  [Np/m]
+  function alphaC(a, b, er, f, rhoIn, rhoOut = rhoIn) {
+    const RsA = rhoIn / skinDepth(rhoIn, f), RsB = rhoOut / skinDepth(rhoOut, f);
+    const R = (RsA / a + RsB / b) / (2 * Math.PI);
+    return R / (2 * z0(a, b, er));
+  }
+  // Dielectric loss: alpha_d = (omega sqrt(er)/(2 c)) tan(delta)  [Np/m]
+  const alphaD = (er, tand, f) => Math.PI * f * Math.sqrt(er) / C0 * tand;
+
+  // ---- TE11 cutoff ----
+  // approximation: kc ~ 2 / (a + b)   (mean circumference = one wavelength)
+  const te11Approx = (a, b, er) => C0 / (Math.PI * (a + b) * Math.sqrt(er));
+  // exact: smallest root x = kc a of J1'(x) Y1'(c x) - J1'(c x) Y1'(x) = 0, c = b/a
+  function te11Kc(a, b) {
+    const c = b / a;
+    const F = x => { const A = d1(x), B = d1(c * x); return A.dj1 * B.dy1 - B.dj1 * A.dy1; };
+    const x0 = 2 / (1 + c);
+    let lo = x0 * 0.6, flo = F(lo), hi = lo, fhi = flo;
+    for (let i = 0; i < 400; i++) { hi = lo * 1.01; fhi = F(hi); if (flo * fhi <= 0) break; lo = hi; flo = fhi; }
+    for (let i = 0; i < 200; i++) {
+      const m = 0.5 * (lo + hi), fm = F(m);
+      if (flo * fm <= 0) { hi = m; fhi = fm; } else { lo = m; flo = fm; }
+      if (hi - lo < 1e-14 * hi) break;
+    }
+    return 0.5 * (lo + hi) / a;
+  }
+  const te11Exact = (a, b, er) => C0 * te11Kc(a, b) / (2 * Math.PI * Math.sqrt(er));
+  // TE11 longitudinal field Hz(r, phi) ~ [J1(kc r) Y1'(kc a) - Y1(kc r) J1'(kc a)] cos(phi)
+  function te11Hz(r, phi, a, kc) { const A = d1(kc * a), R = bessel(kc * r); return (R.j1 * A.dy1 - R.y1 * A.dj1) * Math.cos(phi); }
+
+  // ---- peak-field limits ----
+  // field at radius r for voltage V: E(r) = V / (r ln(b/a)); max at r = a
+  const eMax = (V, a, b) => V / (a * Math.log(b / a));
+  // peak power at breakdown (matched, CW): P = V^2/(2 Z0) with V = Ebd a ln(b/a)
+  function pMax(a, b, er, Ebd) { const V = Ebd * a * Math.log(b / a); return V * V / (2 * z0(a, b, er)); }
+  const vMax = (a, b, Ebd) => Ebd * a * Math.log(b / a);
+
+  // ---- classic optima for a fixed outer radius b (independent of er) ----
+  // power  ~ ln(x)/x^2   -> ln x = 1/2  -> x = 1.6487 (30 ohm in air)
+  // voltage~ ln(x)/x     -> ln x = 1    -> x = e      (60 ohm in air)
+  // loss   ~ (1+x)/ln x  -> ln x = 1 + 1/x -> x = 3.5911 (76.7 ohm in air)
+  function optLossRatio() { let x = 3.5; for (let i = 0; i < 60; i++) { const g = Math.log(x) - 1 - 1 / x, dg = 1 / x + 1 / (x * x); x -= g / dg; } return x; }
+  const optima = { power: Math.exp(0.5), voltage: Math.E, loss: optLossRatio() };
+  // normalised sweep functions (each = 1 at its optimum)
+  const sweep = {
+    power: x => (Math.log(x) / (x * x)) / (0.5 / Math.E),
+    voltage: x => (Math.log(x) / x) / (1 / Math.E),
+    loss: x => ((1 + x) / Math.log(x)) / ((1 + optima.loss) / Math.log(optima.loss)),
+  };
+
+  return { MU0, EPS0, C0, ETA0, NP2DB, bessel, d1, z0, capPerM, indPerM, skinDepth, alphaC, alphaD, te11Approx, te11Kc, te11Exact, te11Hz, eMax, pMax, vMax, optima, sweep };
+})();
+globalThis.CoaxCore = CoaxCore;
+</script>
+<script>
+/* ---- shared UI kit (identical block in every calculator; edit src/common.js and rebuild) ---- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const REDUCED = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------- theme ----------
+const Theme = (() => {
+  const KEY = 'vc-theme', subs = [];
+  let col = null;
+  const eff = () => {
+    const t = document.documentElement.dataset.theme;
+    if (t === 'light' || t === 'dark') return t;
+    return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  };
+  function read() {
+    const cs = getComputedStyle(document.documentElement), g = n => cs.getPropertyValue(n).trim();
+    const names = ['bg', 'surface', 'ink', 'muted', 'line', 'grid', 'field', 'hfield', 'ok', 'bad', 'warn', 'accent', 'metal', 'metal-hi', 'diel', 'diel-edge', 'seq0', 'seq1', 'seq2', 'seq3'];
+    col = {}; for (const n of names) col[n.replace('-', '_')] = g('--' + n);
+    col.rgb = {}; for (const k in col) if (k !== 'rgb') col.rgb[k] = hexRgb(col[k]);
+    col.mono = g('--mono'); col.body = g('--body');
+  }
+  function apply(t) {
+    if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+    read(); label(); subs.forEach(f => f());
+  }
+  function label() { const b = $('#themeBtn'); if (b) { const d = eff() === 'dark'; b.textContent = d ? 'Light' : 'Dark'; b.setAttribute('aria-label', 'Switch to ' + (d ? 'light' : 'dark') + ' theme'); } }
+  function init() {
+    let saved = null; try { saved = localStorage.getItem(KEY); } catch (e) {}
+    if (saved === 'light' || saved === 'dark') document.documentElement.dataset.theme = saved;
+    read(); label();
+    const b = $('#themeBtn');
+    if (b) b.addEventListener('click', () => { const t = eff() === 'dark' ? 'light' : 'dark'; try { localStorage.setItem(KEY, t); } catch (e) {} apply(t); });
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { read(); label(); subs.forEach(f => f()); });
+  }
+  return { init, on: f => subs.push(f), get c() { if (!col) read(); return col; }, eff, apply };
+})();
+function hexRgb(h) {
+  h = (h || '').trim();
+  if (h[0] !== '#') return [128, 128, 128];
+  if (h.length === 4) h = '#' + h[1] + h[1] + h[2] + h[2] + h[3] + h[3];
+  const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+const mixRgb = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+const rgbStr = (c, al = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${al})`;
+// sequential map t in [0,1] -> rgb (theme aware, 4 stops)
+function seqRgb(t) {
+  const R = Theme.c.rgb, s = [R.seq0, R.seq1, R.seq2, R.seq3];
+  t = Math.max(0, Math.min(1, t)) * 3; const i = Math.min(2, Math.floor(t));
+  return mixRgb(s[i], s[i + 1], t - i);
+}
+// diverging map s in [-1,1]: hfield <- surface -> field
+function divRgb(s) {
+  const R = Theme.c.rgb; s = Math.max(-1, Math.min(1, s));
+  return s >= 0 ? mixRgb(R.surface, R.field, Math.pow(s, 0.8)) : mixRgb(R.surface, R.hfield, Math.pow(-s, 0.8));
+}
+function rampCss(kind) {
+  if (kind === 'div') { const c = Theme.c; return `linear-gradient(90deg, ${c.hfield}, ${c.surface}, ${c.field})`; }
+  const c = Theme.c; return `linear-gradient(90deg, ${c.seq0}, ${c.seq1}, ${c.seq2}, ${c.seq3})`;
+}
+
+// ---------- canvas ----------
+// Size the backing store to the element's CSS size x devicePixelRatio. Returns {ctx, w, h} in CSS px.
+function fitCanvas(cv) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  const w = Math.max(1, cv.clientWidth), h = Math.max(1, cv.clientHeight);
+  const W = Math.round(w * dpr), H = Math.round(h * dpr);
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w, h, dpr };
+}
+function arrow(ctx, x0, y0, x1, y1, head = 5) {
+  const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy); if (L < 0.5) return;
+  const ux = dx / L, uy = dy / L, hh = Math.min(head, L * 0.6);
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - ux * hh * 0.6, y1 - uy * hh * 0.6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - ux * hh - uy * hh * 0.55, y1 - uy * hh + ux * hh * 0.55);
+  ctx.lineTo(x1 - ux * hh + uy * hh * 0.55, y1 - uy * hh - ux * hh * 0.55); ctx.closePath(); ctx.fill();
+}
+function onResize(el, fn) { if ('ResizeObserver' in window) new ResizeObserver(() => fn()).observe(el); else window.addEventListener('resize', fn); }
+
+// ---------- number formatting ----------
+function fmt(v, sig = 4) {
+  if (v === null || v === undefined || !isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a >= 1e6 || a < 1e-3)) { const s = v.toExponential(sig - 1).replace('e+', 'e'); return s.replace(/\.?0+e/, 'e'); }
+  return String(Number(v.toPrecision(sig)));
+}
+const PRE = [[1e12, 'T'], [1e9, 'G'], [1e6, 'M'], [1e3, 'k'], [1, ''], [1e-3, 'm'], [1e-6, 'µ'], [1e-9, 'n'], [1e-12, 'p'], [1e-15, 'f']];
+function fmtSI(v, unit, sig = 4) {
+  if (!isFinite(v)) return '—';
+  if (v === 0) return '0 ' + unit;
+  const a = Math.abs(v);
+  for (const [s, p] of PRE) if (a >= s * 0.99995) return fmt(v / s, sig) + ' ' + p + unit;
+  return fmt(v, sig) + ' ' + unit;
+}
+const NP2DB = 20 / Math.LN10;
+
+// ---------- units ----------
+const Units = {
+  len: { mm: 1e-3, mil: 25.4e-6, um: 1e-6 },
+  freq: { Hz: 1, kHz: 1e3, MHz: 1e6, GHz: 1e9 },
+};
+
+// ---------- URL hash state ----------
+const Hash = {
+  read() { const o = {}; const h = location.hash.replace(/^#/, ''); if (!h) return o; for (const kv of h.split('&')) { const [k, v] = kv.split('='); if (k) o[decodeURIComponent(k)] = decodeURIComponent(v || ''); } return o; },
+  _t: 0,
+  write(obj) {
+    clearTimeout(this._t);
+    this._t = setTimeout(() => {
+      const s = Object.entries(obj).map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(typeof v === 'number' ? Number(v.toPrecision(6)) : v)).join('&');
+      try { history.replaceState(null, '', '#' + s); } catch (e) {}
+    }, 150);
+  },
+};
+const num = (v, d) => { const x = parseFloat(v); return isFinite(x) ? x : d; };
+
+// ---------- bound inputs ----------
+// A number input bound to a state value in SI units. kind: 'len' | 'freq' | null. units() returns the current unit name.
+const Fields = [];
+function bindNumber(el, o) {
+  const f = { el, ...o };
+  const factor = () => f.kind === 'len' ? Units.len[f.units()] : f.kind === 'freq' ? Units.freq[f.units()] : (f.scale || 1);
+  f.show = () => { if (document.activeElement === el) return; const v = f.get() / factor(); el.value = isFinite(v) ? String(Number(v.toPrecision(f.sig || 5))) : ''; };
+  el.addEventListener('input', () => {
+    const v = parseFloat(el.value); if (!isFinite(v)) return;
+    const si = v * factor();
+    if ((f.min !== undefined && si < f.min) || (f.max !== undefined && si > f.max)) { el.setAttribute('aria-invalid', 'true'); return; }
+    el.removeAttribute('aria-invalid'); f.set(si); f.onchange && f.onchange();
+  });
+  el.addEventListener('change', () => { f.show(); });
+  el.addEventListener('blur', () => { f.show(); });
+  Fields.push(f); f.show(); return f;
+}
+// A range input mapped (optionally log) onto [min, max] in SI units.
+function bindRange(el, o) {
+  const f = { el, ...o, isRange: true }; const N = 1000; el.min = 0; el.max = N; el.step = 1;
+  const to = v => f.log ? Math.log(v / f.min) / Math.log(f.max / f.min) * N : (v - f.min) / (f.max - f.min) * N;
+  const from = s => f.log ? f.min * Math.pow(f.max / f.min, s / N) : f.min + (f.max - f.min) * s / N;
+  f.show = () => { const v = f.get(); el.value = String(Math.round(Math.max(0, Math.min(N, to(v))))); if (f.text) el.setAttribute('aria-valuetext', f.text(v)); };
+  el.addEventListener('input', () => { let v = from(+el.value); if (f.snap) v = f.snap(v); f.set(v); f.onchange && f.onchange(); });
+  Fields.push(f); f.show(); return f;
+}
+const refreshFields = () => Fields.forEach(f => f.show());
+// segmented control: buttons with data-v; calls set(v)
+function bindSeg(seg, get, set) {
+  const bs = $$('button', seg);
+  const show = () => bs.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(get()))));
+  bs.forEach(b => b.addEventListener('click', () => { set(b.dataset.v); show(); }));
+  show(); Fields.push({ show }); return show;
+}
+
+// ---------- line plots ----------
+function niceTicks(lo, hi, n = 5) {
+  const span = hi - lo; if (!(span > 0)) return [lo];
+  const step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const st = [1, 2, 2.5, 5, 10].map(s => s * mag).find(s => span / s <= n) || 10 * mag;
+  const out = []; for (let v = Math.ceil(lo / st - 1e-9) * st; v <= hi + st * 1e-9; v += st) out.push(Math.abs(v) < st * 1e-9 ? 0 : v);
+  return out;
+}
+function logTicks(lo, hi) {
+  const a = Math.floor(Math.log10(lo) + 1e-9), b = Math.ceil(Math.log10(hi) - 1e-9), out = [], minor = [];
+  const dec = b - a;
+  for (let e = a; e <= b; e++) for (const m of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
+    const v = m * Math.pow(10, e); if (v < lo * 0.999 || v > hi * 1.001) continue;
+    if (m === 1 || (dec <= 2 && (m === 2 || m === 5)) || (dec <= 1 && m !== 1)) out.push(v); else minor.push(v);
+  }
+  return { major: out, minor };
+}
+// opt: {x:{min,max,log,label,fmt}, y:{...}, series:[{pts,color,width,dash,label}], points:[{x,y,color,r,label,ring}], vlines:[{x,color,dash,label}], bands:[{x0,x1,color}], hlines}
+function drawPlot(cv, opt) {
+  const { ctx, w, h } = fitCanvas(cv), C = Theme.c;
+  ctx.clearRect(0, 0, w, h);
+  const small = w < 420;
+  const m = { l: small ? 46 : 56, r: 14, t: 12, b: small ? 38 : 42 };
+  const X = opt.x, Y = opt.y, pw = w - m.l - m.r, ph = h - m.t - m.b;
+  const sx = v => m.l + (X.log ? Math.log(v / X.min) / Math.log(X.max / X.min) : (v - X.min) / (X.max - X.min)) * pw;
+  const sy = v => m.t + ph - (Y.log ? Math.log(v / Y.min) / Math.log(Y.max / Y.min) : (v - Y.min) / (Y.max - Y.min)) * ph;
+  ctx.font = `500 ${small ? 10 : 11}px ${C.mono}`; ctx.textBaseline = 'middle';
+  // bands
+  for (const b of opt.bands || []) { ctx.fillStyle = b.color; const x0 = Math.max(m.l, sx(b.x0)), x1 = Math.min(m.l + pw, sx(b.x1)); if (x1 > x0) ctx.fillRect(x0, m.t, x1 - x0, ph); if (b.label) { ctx.fillStyle = C.muted; ctx.textAlign = 'left'; ctx.fillText(b.label, x0 + 4, m.t + 9); } }
+  // grid + ticks
+  const xt = X.log ? logTicks(X.min, X.max) : { major: niceTicks(X.min, X.max, small ? 4 : 6), minor: [] };
+  const yt = Y.log ? logTicks(Y.min, Y.max) : { major: niceTicks(Y.min, Y.max, 5), minor: [] };
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = C.grid;
+  for (const v of xt.minor) { const x = Math.round(sx(v)) + 0.5; ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.moveTo(x, m.t); ctx.lineTo(x, m.t + ph); ctx.stroke(); ctx.globalAlpha = 1; }
+  for (const v of yt.minor) { const y = Math.round(sy(v)) + 0.5; ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.moveTo(m.l, y); ctx.lineTo(m.l + pw, y); ctx.stroke(); ctx.globalAlpha = 1; }
+  ctx.fillStyle = C.muted;
+  ctx.textAlign = 'center';
+  for (const v of xt.major) { const x = Math.round(sx(v)) + 0.5; ctx.strokeStyle = C.grid; ctx.beginPath(); ctx.moveTo(x, m.t); ctx.lineTo(x, m.t + ph); ctx.stroke(); ctx.fillText((X.fmt || fmt)(v), x, m.t + ph + 12); }
+  ctx.textAlign = 'right';
+  for (const v of yt.major) { const y = Math.round(sy(v)) + 0.5; ctx.strokeStyle = C.grid; ctx.beginPath(); ctx.moveTo(m.l, y); ctx.lineTo(m.l + pw, y); ctx.stroke(); ctx.fillText((Y.fmt || fmt)(v), m.l - 6, y); }
+  ctx.strokeStyle = C.line; ctx.strokeRect(m.l + 0.5, m.t + 0.5, pw, ph);
+  ctx.textAlign = 'center'; ctx.fillText(X.label || '', m.l + pw / 2, h - 9);
+  ctx.save(); ctx.translate(11, m.t + ph / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(Y.label || '', 0, 0); ctx.restore();
+  // clip to plot area
+  ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, pw, ph); ctx.clip();
+  for (const L of opt.hlines || []) { ctx.strokeStyle = L.color || C.muted; ctx.setLineDash(L.dash || [4, 4]); ctx.beginPath(); ctx.moveTo(m.l, sy(L.y)); ctx.lineTo(m.l + pw, sy(L.y)); ctx.stroke(); ctx.setLineDash([]); }
+  for (const L of opt.vlines || []) {
+    const x = sx(L.x); ctx.strokeStyle = L.color || C.muted; ctx.lineWidth = L.width || 1; ctx.setLineDash(L.dash || [4, 4]);
+    ctx.beginPath(); ctx.moveTo(x, m.t); ctx.lineTo(x, m.t + ph); ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth = 1;
+    if (L.label) { ctx.fillStyle = L.color || C.muted; ctx.textAlign = x > m.l + pw - 70 ? 'right' : 'left'; ctx.fillText(L.label, x + (ctx.textAlign === 'left' ? 4 : -4), m.t + (L.ly || 10)); }
+  }
+  for (const s of opt.series || []) {
+    ctx.strokeStyle = s.color || C.ink; ctx.lineWidth = s.width || 2; ctx.setLineDash(s.dash || []); ctx.beginPath();
+    let pen = false;
+    for (const [x, y] of s.pts) {
+      if (!isFinite(y) || (Y.log && y <= 0)) { pen = false; continue; }
+      const px = sx(x), py = sy(y);
+      if (!pen) { ctx.moveTo(px, py); pen = true; } else ctx.lineTo(px, py);
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  ctx.restore();
+  for (const p of opt.points || []) {
+    if (!isFinite(p.y) || !isFinite(p.x)) continue;
+    const px = sx(p.x), py = sy(p.y); if (px < m.l - 1 || px > m.l + pw + 1 || py < m.t - 1 || py > m.t + ph + 1) continue;
+    ctx.fillStyle = p.ring ? C.surface : (p.color || C.ink); ctx.strokeStyle = p.color || C.ink; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(px, py, p.r || 4.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+    if (p.label) { ctx.fillStyle = p.color || C.ink; ctx.textAlign = px > m.l + pw * 0.7 ? 'right' : 'left'; ctx.fillText(p.label, px + (ctx.textAlign === 'left' ? 8 : -8), py - 10); }
+  }
+  return { sx, sy, m, pw, ph };
+}
+
+// ---------- animation clock ----------
+const Clock = (() => {
+  let on = !REDUCED, last = 0, t = 0; const subs = [];
+  function frame(ts) { const dt = last ? Math.min(0.1, (ts - last) / 1000) : 0; last = ts; if (on) { t += dt; subs.forEach(f => f(t)); } requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+  return { on: f => subs.push(f), get running() { return on; }, set running(v) { on = v; }, get t() { return t; }, set t(v) { t = v; } };
+})();
+function bindPlay(btn) {
+  const show = () => { btn.setAttribute('aria-pressed', String(Clock.running)); btn.textContent = Clock.running ? 'Pause' : 'Animate'; };
+  btn.addEventListener('click', () => { Clock.running = !Clock.running; show(); });
+  show();
+}
+</script>
+<script>
+const K = CoaxCore;
+const IN = 25.4e-3;
+// D = inner diameter of the outer conductor (dielectric OD), d = inner conductor OD
+const PRESETS = {
+  rg58:  { name: 'RG-58/U', D: 0.116 * IN, d: 0.033 * IN, er: 2.25, td: 2e-4, rho: 1.7241e-8, eb: 3, nom: '50 (Belden 8240)' },
+  rg402: { name: 'RG-402', D: 0.1175 * IN, d: 0.0362 * IN, er: 2.07, td: 2e-4, rho: 1.7241e-8, eb: 3, nom: '50 ± 1 (M17/130)' },
+  lmr400:{ name: 'LMR-400', D: 0.285 * IN, d: 0.108 * IN, er: 1.38, td: 2e-4, rho: 1.7241e-8, eb: 3, nom: '50 (Times)' },
+  n:     { name: 'N air line', D: 7.00e-3, d: 3.04e-3, er: 1, td: 0, rho: 1.7241e-8, eb: 3, nom: '50 (IEC 61169-16)' },
+  din:   { name: '7/16 air line', D: 16e-3, d: 7e-3, er: 1, td: 0, rho: 1.7241e-8, eb: 3, nom: '50 (IEC 61169-4)' },
+  m35:   { name: '3.5 mm air line', D: 3.50e-3, d: 1.52e-3, er: 1, td: 0, rho: 1.7241e-8, eb: 3, nom: '50 (IEEE 287)' },
+  m24:   { name: '2.4 mm air line', D: 2.40e-3, d: 1.042e-3, er: 1, td: 0, rho: 1.7241e-8, eb: 3, nom: '50 (IEEE 287)' },
+};
+const F_MIN = 10e6, F_MAX = 150e9;
+const H = Hash.read();
+const st = {
+  p: PRESETS[H.p] ? H.p : (H.p === 'custom' ? 'custom' : 'rg402'),
+  D: num(H.D, 0), d: num(H.d, 0), er: num(H.er, 0), td: num(H.td, -1), rho: num(H.rho, 0), eb: num(H.eb, 0),
+  f: Math.min(F_MAX, Math.max(F_MIN, num(H.f, 10e9))), mode: H.mode === 'te11' ? 'te11' : 'tem',
+  lu: H.lu === 'mil' ? 'mil' : 'mm', fu: H.fu === 'MHz' ? 'MHz' : 'GHz',
+};
+function loadPreset(k) { const P = PRESETS[k]; Object.assign(st, { D: P.D, d: P.d, er: P.er, td: P.td, rho: P.rho, eb: P.eb }); }
+if (st.p !== 'custom') loadPreset(st.p);
+if (!(st.D > 0 && st.d > 0 && st.d < st.D)) loadPreset('rg402');
+if (!(st.er >= 1)) st.er = 2.07; if (!(st.td >= 0)) st.td = 2e-4; if (!(st.rho > 0)) st.rho = 1.7241e-8; if (!(st.eb > 0)) st.eb = 3;
+
+let R = {};
+function derive() {
+  const a = st.d / 2, b = st.D / 2, x = b / a;
+  const z0 = K.z0(a, b, st.er), ac = K.alphaC(a, b, st.er, st.f, st.rho), ad = K.alphaD(st.er, st.td, st.f);
+  const fcE = K.te11Exact(a, b, st.er), fcA = K.te11Approx(a, b, st.er);
+  const Ebd = st.eb * 1e6, P = K.pMax(a, b, st.er, Ebd);
+  const V1 = Math.sqrt(2 * z0 * 1);                       // peak volts for 1 W
+  R = { a, b, x, z0, ac, ad, fcE, fcA, P, Ebd, E1: K.eMax(V1, a, b), vf: 1 / Math.sqrt(st.er), C: K.capPerM(a, b, st.er), L: K.indPerM(a, b), kc: K.te11Kc(a, b) };
+}
+
+Theme.init();
+const fmtLen = m => st.lu === 'mil' ? fmt(m / 25.4e-6, 4) + ' mil' : fmtSI(m, 'm');
+const pc = $('#preChips');
+for (const [k, P] of Object.entries(PRESETS)) pc.insertAdjacentHTML('beforeend', `<button type="button" data-v="${k}">${P.name}</button>`);
+pc.insertAdjacentHTML('beforeend', `<button type="button" data-v="custom">Custom</button>`);
+$$('button', pc).forEach(b => b.addEventListener('click', () => { st.p = b.dataset.v; if (PRESETS[st.p]) loadPreset(st.p); update(); }));
+Fields.push({ show: () => $$('button', pc).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === st.p))) });
+const custom = () => { st.p = 'custom'; };
+bindRange($('#rR'), { min: 1.1, max: 12, log: true, get: () => st.D / st.d, set: v => { st.d = st.D / v; custom(); }, text: v => fmt(v, 3), onchange: update });
+bindNumber($('#rN'), { get: () => st.D / st.d, set: v => { st.d = st.D / v; custom(); }, min: 1.05, max: 20, sig: 4, onchange: update });
+bindNumber($('#DN'), { kind: 'len', units: () => st.lu, get: () => st.D, set: v => { const r = st.D / st.d; st.D = v; st.d = v / r; custom(); }, min: 0.05e-3, max: 0.5, onchange: update });
+bindNumber($('#dN'), { kind: 'len', units: () => st.lu, get: () => st.d, set: v => { if (v < st.D / 1.05) { st.d = v; custom(); } }, min: 0.01e-3, max: 0.5, onchange: update });
+bindNumber($('#erN'), { get: () => st.er, set: v => { st.er = v; custom(); }, min: 1, max: 100, onchange: update });
+bindNumber($('#tdN'), { get: () => st.td, set: v => { st.td = v; custom(); }, min: 0, max: 1, onchange: update });
+bindNumber($('#rhoN'), { get: () => st.rho, set: v => { st.rho = v; custom(); }, scale: 1e-8, min: 5e-9, max: 1e-5, onchange: update });
+bindNumber($('#ebN'), { get: () => st.eb, set: v => { st.eb = v; custom(); }, min: 0.1, max: 1000, onchange: update });
+bindRange($('#fR'), { min: F_MIN, max: F_MAX, log: true, get: () => st.f, set: v => st.f = v, text: v => fmtSI(v, 'Hz'), onchange: update });
+bindNumber($('#fN'), { kind: 'freq', units: () => st.fu, get: () => st.f, set: v => st.f = v, min: F_MIN, max: F_MAX, onchange: update });
+bindSeg($('#fuSeg'), () => st.fu, v => { st.fu = v; update(); });
+bindSeg($('#luSeg'), () => st.lu, v => { st.lu = v; update(); });
+bindSeg($('#modeSeg'), () => st.mode, v => { st.mode = v; update(); });
+bindPlay($('#play'));
+
+const OUT = [['z0', 'Z0', true], ['vf', 'Velocity factor'], ['ac', 'Conductor loss'], ['ad', 'Dielectric loss'], ['at', 'Total loss'],
+  ['fc', 'TE11 cutoff (exact)'], ['fca', 'TE11 (approx.)'], ['e1', 'Peak E at 1 W'], ['pm', 'Peak power limit'], ['cl', 'C · L per m']];
+$('#out').innerHTML = OUT.map(([k, l, big]) => `<div class="${big ? 'big' : ''}"><span>${l}</span><b id="o-${k}"></b></div>`).join('');
+
+// ---------- cross-section ----------
+const cvA = $('#cvA'), cvB = $('#cvB');
+let te11Lut = null, offA = document.createElement('canvas'), mapKey = '';
+function buildTE11() {
+  const N = 300, a = R.a, b = R.b, kc = R.kc, rr = [], Rv = [], dR = [];
+  for (let i = 0; i <= N; i++) { const r = a + (b - a) * i / N; rr.push(r); Rv.push(K.te11Hz(r, 0, a, kc)); }
+  for (let i = 0; i <= N; i++) { const i0 = Math.max(0, i - 1), i1 = Math.min(N, i + 1); dR.push((Rv[i1] - Rv[i0]) / (rr[i1] - rr[i0])); }
+  let mx = 0; for (let i = 0; i <= N; i++) mx = Math.max(mx, Math.abs(Rv[i]));
+  let emx = 0; for (let i = 0; i <= N; i++) emx = Math.max(emx, Math.hypot(Rv[i] / rr[i], dR[i]));
+  te11Lut = { N, rr, Rv, dR, mx, emx };
+}
+function te11At(r) { const L = te11Lut, s = (r - R.a) / (R.b - R.a) * L.N, i = Math.max(0, Math.min(L.N - 1, Math.floor(s))), t = s - i; return [L.Rv[i] + (L.Rv[i + 1] - L.Rv[i]) * t, L.dR[i] + (L.dR[i + 1] - L.dR[i]) * t]; }
+function drawA(t) {
+  const { ctx, w, h } = fitCanvas(cvA), C = Theme.c; ctx.clearRect(0, 0, w, h);
+  const cx = w / 2, cy = h / 2 + 4, Rb = Math.min(w, h) * 0.40, Ra = Rb / R.x, wall = Math.max(5, Rb * 0.07);
+  const ph = Math.cos(2 * Math.PI * 0.4 * t);
+  // field color map (offscreen, cached until the inputs, theme or size change)
+  const S2 = Math.max(64, Math.min(480, Math.round(2 * Rb * Math.min(2, window.devicePixelRatio || 1))));
+  const key = [S2, R.x, st.mode, R.kc, Theme.eff()].join('|');
+  if (key !== mapKey) {
+    mapKey = key; offA.width = offA.height = S2; const o = offA.getContext('2d'), img = o.createImageData(S2, S2), px = img.data, half = S2 / 2;
+    for (let j = 0; j < S2; j++) for (let i = 0; i < S2; i++) {
+      const X = (i + 0.5 - half) / half, Y = -(j + 0.5 - half) / half, rn = Math.hypot(X, Y), p = (j * S2 + i) * 4;
+      if (rn > 1 || rn < 1 / R.x) { px[p + 3] = 0; continue; }
+      let v;
+      if (st.mode === 'tem') v = (1 / R.x) / rn;                     // E/Emax = a / r
+      else { const r = rn * R.b, phi = Math.atan2(Y, X), [Rr, dRr] = te11At(r); v = Math.hypot(Rr / r * Math.sin(phi), dRr * Math.cos(phi)) / te11Lut.emx; }
+      const c = seqRgb(Math.pow(v, 0.85));
+      px[p] = c[0]; px[p + 1] = c[1]; px[p + 2] = c[2]; px[p + 3] = 255;
+    }
+    o.putImageData(img, 0, 0);
+  }
+  ctx.drawImage(offA, cx - Rb, cy - Rb, 2 * Rb, 2 * Rb);
+  // conductors
+  ctx.fillStyle = C.metal; ctx.beginPath(); ctx.arc(cx, cy, Rb + wall, 0, 2 * Math.PI); ctx.arc(cx, cy, Rb, 0, 2 * Math.PI, true); ctx.fill('evenodd');
+  ctx.beginPath(); ctx.arc(cx, cy, Ra, 0, 2 * Math.PI); ctx.fill();
+  ctx.strokeStyle = C.ink; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, Rb, 0, 2 * Math.PI); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, cy, Ra, 0, 2 * Math.PI); ctx.stroke();
+  if (st.mode === 'tem') {
+    // H: circles at equal flux spacing r_k = a (b/a)^(k/(M+1)); direction flips with the phase
+    ctx.strokeStyle = C.hfield; ctx.fillStyle = C.hfield; ctx.lineWidth = 1.3;
+    const M = 5;
+    for (let k = 1; k <= M; k++) {
+      const r = Ra * Math.pow(R.x, k / (M + 1));
+      ctx.globalAlpha = 0.35 + 0.65 * Math.abs(ph);
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2 * Math.PI); ctx.stroke();
+      // arrowheads (counter-clockwise when E points outward, wave out of the screen)
+      for (const ang of [Math.PI / 4, 5 * Math.PI / 4]) {
+        const s = ph >= 0 ? 1 : -1, x0 = cx + r * Math.cos(ang), y0 = cy - r * Math.sin(ang), tx = -Math.sin(ang) * s, ty = -Math.cos(ang) * s;
+        arrow(ctx, x0 - tx * 6, y0 - ty * 6, x0 + tx * 2, y0 + ty * 2, 6);
+      }
+    }
+    ctx.globalAlpha = 1;
+    // E: radial lines, constant number of lines => density ~ 1/r
+    ctx.strokeStyle = C.field; ctx.fillStyle = C.field; ctx.lineWidth = 1.6;
+    const NL = 16, gap = 3;
+    for (let k = 0; k < NL; k++) {
+      const ang = (k + 0.5) / NL * 2 * Math.PI, c = Math.cos(ang), s = Math.sin(ang);
+      const r0 = Ra + gap, r1 = Rb - gap; if (r1 - r0 < 6) continue;
+      ctx.globalAlpha = 0.25 + 0.75 * Math.abs(ph);
+      if (ph >= 0) arrow(ctx, cx + r0 * c, cy - r0 * s, cx + r1 * c, cy - r1 * s, 7); else arrow(ctx, cx + r1 * c, cy - r1 * s, cx + r0 * c, cy - r0 * s, 7);
+    }
+    ctx.globalAlpha = 1;
+  } else {
+    // TE11: E-lines are contours of Hz; H transverse ~ grad Hz (arrows)
+    const G = 90, vals = new Float32Array((G + 1) * (G + 1)), inside = new Uint8Array((G + 1) * (G + 1));
+    for (let j = 0; j <= G; j++) for (let i = 0; i <= G; i++) {
+      const X = (i / G * 2 - 1) * R.b, Y = -(j / G * 2 - 1) * R.b, r = Math.hypot(X, Y), q = j * (G + 1) + i;
+      if (r < R.a * 0.98 || r > R.b * 1.02) { inside[q] = 0; vals[q] = 0; continue; }
+      inside[q] = 1; const rc = Math.min(R.b, Math.max(R.a, r)); vals[q] = te11At(rc)[0] * Math.cos(Math.atan2(Y, X)) / te11Lut.mx;
+    }
+    const map = (i, j) => [cx + (i / G * 2 - 1) * Rb, cy + (j / G * 2 - 1) * Rb];
+    ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, Rb, 0, 2 * Math.PI); ctx.arc(cx, cy, Ra, 0, 2 * Math.PI, true); ctx.clip('evenodd');
+    ctx.strokeStyle = C.field; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.3 + 0.7 * Math.abs(ph);
+    for (const lev of [-0.85, -0.6, -0.35, -0.12, 0.12, 0.35, 0.6, 0.85]) {
+      ctx.beginPath();
+      for (let j = 0; j < G; j++) for (let i = 0; i < G; i++) {
+        const q = j * (G + 1) + i; if (!inside[q] && !inside[q + 1] && !inside[q + G + 1]) continue;
+        const v = [vals[q], vals[q + 1], vals[q + G + 2], vals[q + G + 1]], P = [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]], cut = [];
+        for (let e = 0; e < 4; e++) { const A = v[e], B = v[(e + 1) % 4]; if ((A < lev) !== (B < lev)) { const tt = (lev - A) / (B - A); cut.push([P[e][0] + (P[(e + 1) % 4][0] - P[e][0]) * tt, P[e][1] + (P[(e + 1) % 4][1] - P[e][1]) * tt]); } }
+        if (cut.length >= 2) { const p0 = map(...cut[0]), p1 = map(...cut[1]); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); }
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1; ctx.restore();
+    ctx.fillStyle = C.hfield; ctx.strokeStyle = C.hfield; ctx.lineWidth = 1.2;
+    for (let k = 0; k < 3; k++) for (let n = 0; n < 16; n++) {
+      const r = R.a + (R.b - R.a) * (k + 0.5) / 3, phi = (n + 0.5) / 16 * 2 * Math.PI, [Rr, dRr] = te11At(r);
+      const hr = dRr * Math.cos(phi), hp = -Rr / r * Math.sin(phi), m = Math.hypot(hr, hp) / te11Lut.emx; if (m < 0.08) continue;
+      const ux = (hr * Math.cos(phi) - hp * Math.sin(phi)), uy = (hr * Math.sin(phi) + hp * Math.cos(phi)), L = Math.hypot(ux, uy);
+      const rp = r / R.b * Rb, x0 = cx + rp * Math.cos(phi), y0 = cy - rp * Math.sin(phi), len = 4 + 9 * Math.min(1, m) * Math.abs(ph);
+      arrow(ctx, x0 - ux / L * len * Math.sign(ph || 1) / 2, y0 + uy / L * len * Math.sign(ph || 1) / 2, x0 + ux / L * len * Math.sign(ph || 1) / 2, y0 - uy / L * len * Math.sign(ph || 1) / 2, 4);
+    }
+  }
+  ctx.fillStyle = C.muted; ctx.font = `500 11px ${C.mono}`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(st.mode === 'tem' ? 'TEM · wave out of the screen' : 'TE11 pattern', 10, 16);
+  ctx.textAlign = 'center'; ctx.fillText(`D/d = ${fmt(R.x, 3)}`, cx, h - 8);
+}
+
+// ---------- side view ----------
+function drawB(t) {
+  const { ctx, w, h } = fitCanvas(cvB), C = Theme.c; ctx.clearRect(0, 0, w, h);
+  const left = 12, right = w - 12, mid = h / 2 + 6, hb = Math.min(h * 0.36, (right - left) * 0.3), ha = hb / R.x, wall = Math.max(4, hb * 0.08);
+  const lam = 2.998e8 / (st.f * Math.sqrt(st.er)), span = 2 * lam, wt = 2 * Math.PI * 0.4 * t;
+  const zOf = X => (X - left) / (right - left) * span;
+  if (st.mode === 'tem') {
+    // background: radial E in the cut plane, signed by side (up = +r above the axis)
+    for (let X = left; X < right; X += 2) {
+      const v = Math.cos(wt - 2 * Math.PI * zOf(X) / lam);
+      for (const side of [-1, 1]) {
+        const steps = 24;
+        for (let k = 0; k < steps; k++) {
+          const r0 = ha + (hb - ha) * k / steps, r1 = ha + (hb - ha) * (k + 1) / steps, e = (ha / ((r0 + r1) / 2)) * v;
+          ctx.fillStyle = rgbStr(divRgb(e)); const y0 = mid - side * r0, y1 = mid - side * r1; ctx.fillRect(X, Math.min(y0, y1), 2.2, Math.abs(y1 - y0) + 0.5);
+        }
+      }
+    }
+    // E arrows
+    ctx.strokeStyle = C.ink; ctx.fillStyle = C.ink; ctx.lineWidth = 1.4;
+    const NA = Math.max(8, Math.floor((right - left) / 26));
+    for (let k = 0; k < NA; k++) {
+      const X = left + (k + 0.5) * (right - left) / NA, v = Math.cos(wt - 2 * Math.PI * zOf(X) / lam);
+      for (const side of [-1, 1]) {
+        const r0 = ha + 3, r1 = hb - 3, L = (r1 - r0) * Math.abs(v); if (L < 4) continue;
+        const rc = (r0 + r1) / 2, y0 = mid - side * (rc - L / 2 * Math.sign(v)), y1 = mid - side * (rc + L / 2 * Math.sign(v));
+        arrow(ctx, X, y0, X, y1, 6);
+      }
+    }
+    // H: dots and crosses (perpendicular to the plane)
+    ctx.lineWidth = 1.3;
+    for (let k = 0; k < NA; k++) {
+      const X = left + k * (right - left) / NA, v = Math.cos(wt - 2 * Math.PI * zOf(X) / lam), rr = 2 + 3.5 * Math.abs(v);
+      if (Math.abs(v) < 0.2) continue;
+      for (const side of [-1, 1]) {
+        const y = mid - side * (ha + (hb - ha) * 0.5), outward = v * side > 0;
+        ctx.strokeStyle = C.hfield; ctx.fillStyle = C.hfield; ctx.beginPath(); ctx.arc(X, y, rr + 2, 0, 2 * Math.PI); ctx.stroke();
+        if (outward) { ctx.beginPath(); ctx.arc(X, y, 1.6, 0, 2 * Math.PI); ctx.fill(); }
+        else { ctx.beginPath(); ctx.moveTo(X - rr, y - rr); ctx.lineTo(X + rr, y + rr); ctx.moveTo(X - rr, y + rr); ctx.lineTo(X + rr, y - rr); ctx.stroke(); }
+      }
+    }
+  } else {
+    // TE11 along z: propagating or evanescent amplitude
+    const prop = st.f > R.fcE, kz = prop ? 2 * Math.PI * st.f * Math.sqrt(st.er) / 2.998e8 * Math.sqrt(1 - (R.fcE / st.f) ** 2) : 0;
+    const alpha = prop ? 0 : 2 * Math.PI * R.fcE * Math.sqrt(st.er) / 2.998e8 * Math.sqrt(1 - (st.f / R.fcE) ** 2);
+    for (let X = left; X < right; X += 2) {
+      const z = zOf(X), env = Math.exp(-alpha * z), v = env * Math.cos(wt - kz * z);
+      for (let Y = mid - hb; Y < mid + hb; Y += 2) {
+        const yy = (mid - Y) / hb; if (Math.abs(yy) < 1 / R.x) continue;
+        ctx.fillStyle = rgbStr(divRgb(v * (1 - Math.abs(yy)) * 1.6)); ctx.fillRect(X, Y, 2.2, 2.2);
+      }
+    }
+    ctx.fillStyle = C.ink; ctx.font = `600 12px ${C.body}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(prop ? 'TE11 propagates: the line is no longer single-mode' : `TE11 is cut off: it decays ${fmt(alpha * NP2DB / 1000, 3)} dB/mm`, (left + right) / 2, mid - hb - wall - 14);
+  }
+  // conductors
+  ctx.fillStyle = C.metal;
+  ctx.fillRect(left, mid - hb - wall, right - left, wall); ctx.fillRect(left, mid + hb, right - left, wall);
+  ctx.fillRect(left, mid - ha, right - left, 2 * ha);
+  ctx.strokeStyle = C.ink; ctx.lineWidth = 1;
+  for (const y of [mid - hb, mid + hb, mid - ha, mid + ha]) { ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke(); }
+  // wavelength brace
+  ctx.fillStyle = C.muted; ctx.strokeStyle = C.muted; ctx.font = `500 11px ${C.mono}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  const yb = mid + hb + wall + 16; const x1 = left + (right - left) / 2;
+  ctx.beginPath(); ctx.moveTo(left, yb - 4); ctx.lineTo(left, yb); ctx.lineTo(x1, yb); ctx.lineTo(x1, yb - 4); ctx.stroke();
+  ctx.fillText('λ = ' + fmtLen(lam), (left + x1) / 2, yb + 13);
+  ctx.textAlign = 'left'; ctx.fillText(st.mode === 'tem' ? 'side view · E (arrows), H (⊙ ⊗)' : 'side view · TE11 amplitude', left, 16);
+}
+
+// ---------- plots ----------
+function drawPlots() {
+  const C = Theme.c, Pw = [], Vv = [], Ls = [];
+  for (let i = 0; i <= 300; i++) { const x = 1.1 * Math.pow(12 / 1.1, i / 300); Pw.push([x, K.sweep.power(x)]); Vv.push([x, K.sweep.voltage(x)]); Ls.push([x, 1 / K.sweep.loss(x)]); }
+  const zl = x => fmt(K.z0(1, x, st.er), 3) + ' Ω';
+  const o = K.optima;
+  drawPlot($('#pS'), { x: { min: 1.1, max: 12, log: true, label: 'D / d', fmt: v => fmt(v, 2) }, y: { min: 0, max: 1.12, label: 'relative to optimum' },
+    series: [{ pts: Pw, color: C.field, width: 2 }, { pts: Vv, color: C.warn, width: 2, dash: [6, 3] }, { pts: Ls, color: C.hfield, width: 2 }],
+    vlines: [{ x: o.power, color: C.field, label: zl(o.power), ly: 10 }, { x: o.voltage, color: C.warn, label: zl(o.voltage), ly: 24 }, { x: o.loss, color: C.hfield, label: zl(o.loss), ly: 38 }, { x: R.x, color: C.ink, dash: [], width: 1.5 }],
+    points: [{ x: R.x, y: K.sweep.power(R.x), color: C.field, label: 'this design ' + fmt(R.z0, 3) + ' Ω' }, { x: R.x, y: K.sweep.voltage(R.x), color: C.warn }, { x: R.x, y: 1 / K.sweep.loss(R.x), color: C.hfield }] });
+  $('#lgS').innerHTML = `<span><i style="color:${C.field}"></i>peak power</span><span><i class="dash" style="color:${C.warn}"></i>peak voltage</span><span><i style="color:${C.hfield}"></i>1 / conductor loss</span><span><i style="color:${C.ink}"></i>this design</span>`;
+  const ac = [], ad = [], at = [];
+  for (let i = 0; i <= 200; i++) { const f = F_MIN * Math.pow(F_MAX / F_MIN, i / 200), c = K.alphaC(R.a, R.b, st.er, f, st.rho) * NP2DB, d = K.alphaD(st.er, st.td, f) * NP2DB; ac.push([f, c]); ad.push([f, d]); at.push([f, c + d]); }
+  const ymax = Math.max(...at.map(p => p[1])) * 1.5, ymin = Math.max(1e-4, Math.min(...ac.map(p => p[1])) / 3);
+  drawPlot($('#pL'), { x: { min: F_MIN, max: F_MAX, log: true, label: 'frequency (Hz)', fmt: v => fmtSI(v, '').replace(' ', '') }, y: { min: ymin, max: ymax, log: true, label: 'loss (dB/m)' },
+    bands: [{ x0: R.fcE, x1: F_MAX, color: rgbStr(Theme.c.rgb.bad, 0.10), label: 'TE11' }],
+    series: [{ pts: ac, color: C.metal, width: 1.6, dash: [5, 3] }, { pts: ad, color: C.hfield, width: 1.6, dash: [2, 3] }, { pts: at, color: C.ink, width: 2.4 }],
+    vlines: [{ x: R.fcE, color: C.bad, dash: [2, 3] }],
+    points: [{ x: st.f, y: (R.ac + R.ad) * NP2DB, color: C.field, label: fmt((R.ac + R.ad) * NP2DB, 3) + ' dB/m' }] });
+  $('#lgL').innerHTML = `<span><i class="dash" style="color:${C.metal}"></i>conductor</span><span><i class="dash" style="color:${C.hfield}"></i>dielectric</span><span><i style="color:${C.ink}"></i>total</span>`;
+}
+
+function fillCheck() {
+  let s = '<thead><tr><th>preset</th><th>D/d</th><th>Z0 here</th><th>nominal Ω</th><th>TE11</th></tr></thead><tbody>';
+  for (const P of Object.values(PRESETS)) {
+    const z = K.z0(P.d / 2, P.D / 2, P.er), fc = K.te11Exact(P.d / 2, P.D / 2, P.er);
+    s += `<tr><td>${P.name}</td><td>${fmt(P.D / P.d, 4)}</td><td>${z.toFixed(2)}</td><td>${P.nom}</td><td>${fmtSI(fc, 'Hz', 3)}</td></tr>`;
+  }
+  s += `<tr><td>optimum, air: power</td><td>${fmt(K.optima.power, 5)}</td><td>${K.z0(1, K.optima.power, 1).toFixed(2)}</td><td>30</td><td></td></tr>`;
+  s += `<tr><td>optimum, air: voltage</td><td>${fmt(K.optima.voltage, 5)}</td><td>${K.z0(1, K.optima.voltage, 1).toFixed(2)}</td><td>60</td><td></td></tr>`;
+  s += `<tr><td>optimum, air: loss</td><td>${fmt(K.optima.loss, 5)}</td><td>${K.z0(1, K.optima.loss, 1).toFixed(2)}</td><td>76.7</td><td></td></tr>`;
+  $('#refTable').innerHTML = s + '</tbody>';
+  let t = '<thead><tr><th>b/a</th><th>kc(a+b)/2 exact</th><th>approx. error</th></tr></thead><tbody>';
+  for (const c of [1.01, 1.5, 2, 2.3026, 3, 3.5911, 5, 10]) { const k = K.te11Kc(1, c) * (1 + c) / 2; t += `<tr><td>${c}</td><td>${k.toFixed(4)}</td><td>${fmt(100 * (1 / k - 1), 3)}%</td></tr>`; }
+  $('#refTE').innerHTML = t + '</tbody>';
+}
+
+function update() {
+  derive(); buildTE11();
+  $('#fU').textContent = st.fu; $('#DU').textContent = st.lu; $('#dU').textContent = st.lu;
+  refreshFields();
+  const tot = (R.ac + R.ad) * NP2DB;
+  $('#o-z0').textContent = fmt(R.z0, 4) + ' Ω';
+  $('#o-vf').textContent = fmt(R.vf, 3);
+  $('#o-ac').textContent = fmt(R.ac * NP2DB, 3) + ' dB/m';
+  $('#o-ad').textContent = fmt(R.ad * NP2DB, 3) + ' dB/m';
+  $('#o-at').textContent = fmt(tot, 3) + ' dB/m';
+  $('#o-fc').textContent = fmtSI(R.fcE, 'Hz');
+  $('#o-fca').innerHTML = `${fmtSI(R.fcA, 'Hz', 4)} <small>(${fmt(100 * (R.fcA / R.fcE - 1), 2)}%)</small>`;
+  $('#o-e1').textContent = fmtSI(R.E1, 'V/m', 3);
+  $('#o-pm').textContent = fmtSI(R.P, 'W', 3);
+  $('#o-cl').textContent = `${fmtSI(R.C, 'F', 3)} · ${fmtSI(R.L, 'H', 3)}`;
+  const C = Theme.c;
+  $('#legend').innerHTML = st.mode === 'tem'
+    ? `<span><i style="color:${C.field}"></i>E (radial)</span><span><i style="color:${C.hfield}"></i>H (circles)</span><span>|E|</span><span class="ramp" style="background:${rampCss('seq')}"></span><span>low → high (at the inner conductor)</span>`
+    : `<span><i style="color:${C.field}"></i>E lines</span><span><i style="color:${C.hfield}"></i>H (arrows)</span><span>|E|</span><span class="ramp" style="background:${rampCss('seq')}"></span>`;
+  const above = st.f > R.fcE;
+  $('#caption').textContent = st.mode === 'tem'
+    ? `Same number of E lines at every radius, so |E| ∝ 1/r and peaks at the inner conductor. ${above ? 'Warning: above the TE11 cutoff (' + fmtSI(R.fcE, 'Hz', 3) + ').' : 'Single-mode up to ' + fmtSI(R.fcE, 'Hz', 3) + '.'}`
+    : `TE11 is the first higher mode: one field period around the circumference. Cutoff ${fmtSI(R.fcE, 'Hz', 3)} for this line.`;
+  drawA(Clock.t); drawB(Clock.t); drawPlots();
+  Hash.write({ p: st.p, D: st.D, d: st.d, er: st.er, td: st.td, rho: st.rho, eb: st.eb, f: st.f, mode: st.mode, lu: st.lu, fu: st.fu });
+}
+Clock.on(t => { drawA(t); drawB(t); });
+Theme.on(update);
+onResize(cvA, () => { drawA(Clock.t); drawB(Clock.t); });
+onResize($('#pS'), drawPlots);
+fillCheck();
+update();
+</script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--@HEAD-->
+<title>Visual RF Calculators</title>
+<meta name="description" content="RF and microwave calculators that show the physics: every input redraws the fields or currents along with the result, and every page checks its maths against published values.">
+<style>
+.gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 18px; }
+.tile { display: grid; grid-template-rows: auto 1fr; text-decoration: none; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.tile:hover, .tile:focus-visible { border-color: var(--ink); }
+.tile svg { display: block; width: 100%; height: auto; background: var(--bg); border-bottom: 1px solid var(--line); }
+.tile .tx { padding: 14px 16px 16px; display: grid; gap: 6px; align-content: start; }
+.tile .n { font: 600 0.68rem/1 var(--mono); letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; }
+.tile h2 { font-size: 1.35rem; }
+.tile p { font-size: 0.92rem; color: var(--muted); }
+.tile .chk { font: 500 0.74rem/1.4 var(--mono); color: var(--ok); }
+.next { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 8px; list-style: none; padding: 0; margin: 0; }
+.next li { background: var(--surface); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 12px; font-size: 0.9rem; }
+.next li span { display: block; font: 500 0.74rem/1.4 var(--mono); color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="topbar"><span class="home">Visual calculators</span><button class="btn" id="themeBtn" type="button">Dark</button></div>
+<main class="wrap">
+  <header class="hero">
+    <p class="eyebrow">RF and microwave &middot; open source</p>
+    <h1>Calculators that show the physics</h1>
+    <p class="lede">Every input redraws the fields or currents along with the number. Every page shows its method and checks itself against published values.</p>
+  </header>
+
+  <section class="gal" aria-label="Calculators">
+    <a class="tile" href="skin.html">
+      <svg viewBox="0 0 320 150" aria-hidden="true">
+        <defs><radialGradient id="g1"><stop offset="0.55" stop-color="var(--surface)"/><stop offset="0.86" stop-color="var(--seq1)"/><stop offset="1" stop-color="var(--seq2)"/></radialGradient></defs>
+        <circle cx="90" cy="75" r="52" fill="url(#g1)" stroke="var(--ink)" stroke-width="1.5"/>
+        <circle cx="90" cy="75" r="42" fill="none" stroke="var(--ink)" stroke-dasharray="4 3"/>
+        <path d="M170 110 C 230 110, 250 108, 268 96 S 292 40, 296 30" fill="none" stroke="var(--ink)" stroke-width="2"/>
+        <path d="M170 110 H300 M170 110 V30" stroke="var(--line)"/>
+      </svg>
+      <div class="tx"><span class="n">01 · Conductors</span><h2>Skin effect</h2><p>Where AC current flows in a wire. Exact Bessel solution, R<sub>ac</sub>/R<sub>dc</sub>, flat-conductor view.</p><span class="chk">checked: R/R0 table, ber/bei series</span></div>
+    </a>
+    <a class="tile" href="coax.html">
+      <svg viewBox="0 0 320 150" aria-hidden="true">
+        <circle cx="90" cy="75" r="58" fill="var(--seq1)" stroke="var(--metal)" stroke-width="7"/>
+        <circle cx="90" cy="75" r="18" fill="var(--metal)"/>
+        <g stroke="var(--field)" stroke-width="1.6">
+          <line x1="110" y1="75" x2="146" y2="75"/><line x1="70" y1="75" x2="34" y2="75"/><line x1="90" y1="55" x2="90" y2="19"/><line x1="90" y1="95" x2="90" y2="131"/>
+          <line x1="104" y1="61" x2="130" y2="35"/><line x1="76" y1="89" x2="50" y2="115"/><line x1="104" y1="89" x2="130" y2="115"/><line x1="76" y1="61" x2="50" y2="35"/>
+        </g>
+        <g fill="none" stroke="var(--hfield)"><circle cx="90" cy="75" r="26"/><circle cx="90" cy="75" r="36"/><circle cx="90" cy="75" r="48"/></g>
+        <path d="M175 120 Q 205 30 235 50 T 300 110" fill="none" stroke="var(--hfield)" stroke-width="2"/><path d="M175 120 H300" stroke="var(--line)"/>
+      </svg>
+      <div class="tx"><span class="n">02 · Transmission lines</span><h2>Coaxial line</h2><p>Z0, loss, TE11 cutoff (exact root) and peak power. Why 30, 60 and 77 Ω.</p><span class="chk">checked: cable data, optima, TE11 roots</span></div>
+    </a>
+    <a class="tile" href="microstrip.html">
+      <svg viewBox="0 0 320 150" aria-hidden="true">
+        <rect x="0" y="92" width="320" height="44" fill="var(--diel)"/>
+        <rect x="0" y="136" width="320" height="6" fill="var(--metal)"/>
+        <g fill="none" stroke="var(--ink)" stroke-opacity="0.45"><ellipse cx="160" cy="92" rx="52" ry="34"/><ellipse cx="160" cy="92" rx="82" ry="58"/><ellipse cx="160" cy="92" rx="118" ry="80"/></g>
+        <g fill="none" stroke="var(--field)" stroke-width="1.5"><path d="M140 94 V136"/><path d="M160 94 V136"/><path d="M180 94 V136"/><path d="M196 94 C 206 110, 210 120, 222 136"/><path d="M124 94 C 114 110, 110 120, 98 136"/><path d="M200 90 C 240 50, 280 90, 290 136"/><path d="M120 90 C 80 50, 40 90, 30 136"/></g>
+        <rect x="120" y="88" width="80" height="5" fill="var(--metal)" stroke="var(--ink)"/>
+      </svg>
+      <div class="tx"><span class="n">03 · Planar lines</span><h2>Microstrip, solved live</h2><p>A finite-difference Laplace solve in your browser, next to Hammerstad–Jensen. Synthesis and dispersion.</p><span class="chk">checked: 20-case sweep vs H–J, &lt; 0.4%</span></div>
+    </a>
+    <a class="tile" href="waveguide.html">
+      <svg viewBox="0 0 320 150" aria-hidden="true">
+        <defs><linearGradient id="g4" x1="0" x2="1"><stop offset="0" stop-color="var(--hfield)"/><stop offset="0.25" stop-color="var(--surface)"/><stop offset="0.5" stop-color="var(--field)"/><stop offset="0.75" stop-color="var(--surface)"/><stop offset="1" stop-color="var(--hfield)"/></linearGradient></defs>
+        <rect x="20" y="45" width="110" height="50" fill="var(--seq1)" stroke="var(--metal)" stroke-width="5"/>
+        <g stroke="var(--field)" stroke-width="1.6"><line x1="50" y1="48" x2="50" y2="92"/><line x1="65" y1="48" x2="65" y2="92"/><line x1="75" y1="48" x2="75" y2="92"/><line x1="85" y1="48" x2="85" y2="92"/><line x1="100" y1="48" x2="100" y2="92"/></g>
+        <rect x="150" y="45" width="160" height="50" fill="url(#g4)"/>
+        <path d="M150 43 H310 M150 97 H310" stroke="var(--metal)" stroke-width="4"/>
+      </svg>
+      <div class="tx"><span class="n">04 · Waveguides</span><h2>Rectangular waveguide</h2><p>TE and TM patterns, the mode chart, λg, vp, vg, impedance, loss and evanescent decay.</p><span class="chk">checked: Pozar Example 3.1</span></div>
+    </a>
+    <a class="tile" href="fspl.html">
+      <svg viewBox="0 0 320 150" aria-hidden="true">
+        <path d="M40 75 L270 40 L270 110 Z" fill="var(--field)" fill-opacity="0.12"/>
+        <g fill="none" stroke="var(--field)"><path d="M70 40 A 45 45 0 0 1 70 110" stroke-opacity="0.9"/><path d="M110 25 A 80 80 0 0 1 110 125" stroke-opacity="0.6"/><path d="M160 15 A 125 125 0 0 1 160 135" stroke-opacity="0.4"/><path d="M215 10 A 180 180 0 0 1 215 140" stroke-opacity="0.25"/></g>
+        <circle cx="40" cy="75" r="5" fill="var(--ink)"/><line x1="270" y1="40" x2="270" y2="110" stroke="var(--metal)" stroke-width="6" stroke-linecap="round"/>
+      </svg>
+      <div class="tx"><span class="n">05 · Propagation</span><h2>Path loss and link budget</h2><p>Spherical spreading and effective aperture, Friis, rain (ITU-R P.838-3) and a waterfall budget.</p><span class="chk">checked: P.525 values, P.838-3 table</span></div>
+    </a>
+  </section>
+
+  <section class="hero" aria-labelledby="nextH">
+    <h2 id="nextH">Next on the list</h2>
+    <ul class="next">
+      <li>Stripline<span>conformal map, field picture</span></li>
+      <li>CPW and grounded CPW<span>elliptic integrals vs field solve</span></li>
+      <li>Circular waveguide<span>Bessel modes, TE01 low loss</span></li>
+      <li>VSWR and mismatch<span>standing wave on the line</span></li>
+      <li>Quarter-wave transformer<span>reflections cancelling</span></li>
+      <li>Wilkinson divider<span>even and odd modes</span></li>
+      <li>Coupled lines<span>even/odd fields, coupling</span></li>
+      <li>Surface roughness<span>Hammerstad and Huray</span></li>
+      <li>Fresnel zone and two-ray<span>clearance, breakpoint</span></li>
+      <li>Cascaded noise figure<span>Friis noise formula</span></li>
+    </ul>
+  </section>
+
+  <footer class="foot"><span>Made by Ben Hardy</span><span>MIT licence</span><span>Each file is self-contained HTML. Open it offline or view source.</span></footer>
+</main>
+<!--@COMMONJS-->
+<script>Theme.init();</script>
+</body>
+</html>

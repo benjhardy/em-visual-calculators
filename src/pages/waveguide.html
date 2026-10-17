@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--@HEAD-->
+<title>Rectangular Waveguide Modes</title>
+<meta name="description" content="TE and TM mode patterns of a rectangular waveguide, cutoff frequencies, the mode chart, guide wavelength, wave impedance and attenuation, with an animated side view.">
+<style>
+.wgstage { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
+#cvX { aspect-ratio: 4 / 3; display: block; width: 100%; }
+#cvM { aspect-ratio: 4 / 3.3; display: block; width: 100%; cursor: pointer; }
+#cvZ { aspect-ratio: 3.4 / 1; display: block; width: 100%; border-top: 1px solid var(--line); }
+@media (max-width: 640px) { .wgstage { grid-template-columns: 1fr; } #cvM { aspect-ratio: 4 / 3; border-top: 1px solid var(--line); } #cvZ { aspect-ratio: 2.2 / 1; } }
+.state { font: 700 0.8rem/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 6px 9px; border-radius: 6px; border: 1px solid currentColor; }
+.state.on { color: var(--ok); } .state.off { color: var(--bad); }
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="index.html">&larr; Visual calculators</a><button class="btn" id="themeBtn" type="button">Dark</button></div>
+<main class="wrap">
+  <header class="hero">
+    <p class="eyebrow">Visual calculator 04 &middot; Waveguides</p>
+    <h1>Rectangular waveguide</h1>
+    <p class="lede">Each mode is a standing pattern across the guide and a wave along it. Below its cutoff it does not travel. It fades.</p>
+  </header>
+
+  <section class="calc" aria-label="Calculator">
+    <div class="card">
+      <div class="vbar">
+        <div class="row"><span class="lbl">Mode</span><span class="mono" id="modeName" style="font-weight:700"></span><span class="state" id="state"></span></div>
+        <button class="btn" id="play" type="button">Pause</button>
+      </div>
+      <div class="wgstage">
+        <canvas id="cvX" role="img" aria-label="Cross-section field pattern"></canvas>
+        <canvas id="cvM" role="img" aria-label="Mode chart: cutoff frequencies; click a row to select a mode" tabindex="0"></canvas>
+      </div>
+      <canvas id="cvZ" role="img" aria-label="Side view of the field along the guide"></canvas>
+      <div class="legend" id="legend"></div>
+      <p class="caption" id="caption" aria-live="polite"></p>
+    </div>
+
+    <div class="card pad">
+      <div class="grp">
+        <div class="two">
+          <div class="field"><label for="pre">Standard guide</label><select id="pre"></select></div>
+          <div class="field"><label for="modeSel">Mode</label><select id="modeSel"></select></div>
+        </div>
+        <div class="two">
+          <div class="field"><label for="aN">Width a <span class="u lu"></span></label><input type="number" id="aN" step="any"></div>
+          <div class="field"><label for="bN">Height b <span class="u lu"></span></label><input type="number" id="bN" step="any"></div>
+        </div>
+        <div class="seg" id="luSeg" role="group" aria-label="Length unit"><button type="button" data-v="mm">mm</button><button type="button" data-v="mil">mil</button></div>
+      </div>
+      <div class="grp">
+        <div class="field"><label for="fN">Frequency <span class="u">GHz</span></label>
+          <div class="slide"><input type="range" id="fR" aria-label="Frequency slider"><input type="number" id="fN" step="any"></div></div>
+      </div>
+      <div class="grp">
+        <div class="two">
+          <div class="field"><label for="erN">Filling εr</label><input type="number" id="erN" step="any" min="1" max="100"></div>
+          <div class="field"><label for="tdN">Loss tangent</label><input type="number" id="tdN" step="any" min="0" max="1"></div>
+        </div>
+        <div class="field"><label for="rhoN">Wall ρ <span class="u">µΩ·cm</span></label><input type="number" id="rhoN" step="any" min="0.5" max="1000"></div>
+      </div>
+      <div class="readout" id="out"></div>
+    </div>
+  </section>
+
+  <section class="plots" aria-label="Plots">
+    <div class="card plot">
+      <h3>Attenuation of the selected mode</h3>
+      <p class="sub">Below cutoff: evanescent decay. Above: wall and dielectric loss. Note the log scale.</p>
+      <canvas id="pA" role="img" aria-label="Attenuation versus frequency"></canvas>
+      <div class="legend" id="lgA"></div>
+    </div>
+    <div class="card plot">
+      <h3>Phase and group velocity</h3>
+      <p class="sub">vp · vg = v². Near cutoff the phase races ahead and the energy crawls.</p>
+      <canvas id="pV" role="img" aria-label="Phase and group velocity versus frequency"></canvas>
+      <div class="legend" id="lgV"></div>
+    </div>
+  </section>
+
+  <section class="card pad check" id="check" aria-labelledby="chkH">
+    <h2 id="chkH">Check</h2>
+    <div class="cols">
+      <div class="grp">
+        <p class="lbl">Method</p>
+<div class="eq">kc = √((mπ/a)² + (nπ/b)²),   fc = c·kc / (2π√εr)
+β  = √(k² − kc²)          propagating (f > fc)
+α  = √(kc² − k²)          evanescent  (f < fc)
+λg = 2π/β,  vp = ω/β,  vg = v√(1 − (fc/f)²)
+Z_TE = ηk/β,   Z_TM = ηβ/k
+TE10: αc = Rs/(bη√(1−(fc/f)²)) · (1 + (2b/a)(fc/f)²)
+αd = k² tan δ / (2β)
+TE: Hz = cos(mπx/a) cos(nπy/b),  E lines = Hz contours
+TM: Ez = sin(mπx/a) sin(nπy/b),  H lines = Ez contours</div>
+        <p class="note">Conductor loss: perturbation method, smooth walls, formulas for TEm0, TE0n, TEmn and TMmn. Field forms as in Pozar Table 3.2.</p>
+      </div>
+      <div class="grp">
+        <p class="lbl">Reference values</p>
+        <div class="tblwrap"><table class="ref" id="refTable"></table></div>
+      </div>
+    </div>
+    <ol class="refs">
+      <li>D. M. Pozar, <i>Microwave Engineering</i>, 4th ed., Wiley, 2012, Sec. 3.3 and Example 3.1 (Teflon-filled K-band guide).</li>
+      <li>R. E. Collin, <i>Foundations for Microwave Engineering</i>, 2nd ed., IEEE Press, 2001, Sec. 3.13 (attenuation of TEmn and TMmn modes).</li>
+      <li>N. Marcuvitz, <i>Waveguide Handbook</i>, 1951, Sec. 2.2.</li>
+      <li>Guide dimensions: EIA RS-261-B / MIL-DTL-85 (WR designations, inside dimensions in inches).</li>
+    </ol>
+  </section>
+
+  <footer class="foot"><span>Made by Ben Hardy</span><span>MIT licence</span><a href="index.html">All calculators</a></footer>
+</main>
+
+<!--@CORE core-waveguide.js-->
+<!--@COMMONJS-->
+<script>
+const G = WgCore, IN = 25.4e-3;
+// inside dimensions (inches) and recommended TE10 band (GHz)
+const WR = {
+  'WR-430': [4.300, 2.150, 1.70, 2.60], 'WR-284': [2.840, 1.340, 2.60, 3.95], 'WR-187': [1.872, 0.872, 3.95, 5.85], 'WR-137': [1.372, 0.622, 5.85, 8.20],
+  'WR-112': [1.122, 0.497, 7.05, 10.0], 'WR-90': [0.900, 0.400, 8.20, 12.4], 'WR-75': [0.750, 0.375, 10.0, 15.0], 'WR-62': [0.622, 0.311, 12.4, 18.0],
+  'WR-42': [0.420, 0.170, 18.0, 26.5], 'WR-28': [0.280, 0.140, 26.5, 40.0], 'WR-15': [0.148, 0.074, 50.0, 75.0], 'WR-10': [0.100, 0.050, 75.0, 110],
+};
+const H = Hash.read();
+const st = {
+  p: WR[H.p] ? H.p : (H.p === 'custom' ? 'custom' : 'WR-90'),
+  a: num(H.a, 0), b: num(H.b, 0), er: Math.max(1, num(H.er, 1)), td: Math.max(0, num(H.td, 0)), rho: num(H.rho, 1.7241e-8),
+  f: num(H.f, 10e9), type: H.ty === 'TM' ? 'TM' : 'TE', m: Math.round(num(H.m, 1)), n: Math.round(num(H.n, 0)), lu: H.lu === 'mil' ? 'mil' : 'mm',
+};
+if (st.p !== 'custom' || !(st.a > 0 && st.b > 0)) { if (st.p === 'custom') st.p = 'WR-90'; st.a = WR[st.p][0] * IN; st.b = WR[st.p][1] * IN; }
+if (!G.valid(st.type, st.m, st.n)) { st.type = 'TE'; st.m = 1; st.n = 0; }
+const fmtLen = m => st.lu === 'mil' ? fmt(m / 25.4e-6, 4) + ' mil' : fmtSI(m, 'm');
+const fc10 = () => G.fc(1, 0, Math.max(st.a, st.b), Math.min(st.a, st.b), st.er);
+const fRange = () => [0.5 * fc10(), 4 * fc10()];
+function clampF() { const [lo, hi] = fRange(); st.f = Math.min(hi, Math.max(lo, st.f)); }
+clampF();
+
+let P = {}, modes = [];
+function derive() {
+  modes = G.modeList(st.a, st.b, st.er, 10);
+  if (!modes.some(md => md.type === st.type && md.m === st.m && md.n === st.n)) modes.push({ type: st.type, m: st.m, n: st.n, fc: G.fc(st.m, st.n, st.a, st.b, st.er), name: st.type + st.m + st.n });
+  P = G.prop(st.type, st.m, st.n, st.a, st.b, st.f, st.er);
+  P.fc = G.fc(st.m, st.n, st.a, st.b, st.er);
+  P.ac = G.alphaC(st.type, st.m, st.n, st.a, st.b, st.f, st.rho, st.er);
+  P.ad = st.td > 0 ? G.alphaD(st.type, st.m, st.n, st.a, st.b, st.f, st.er, st.td) : 0;
+  const s = modes.filter(md => md.fc > modes[0].fc * 1.0001);
+  P.single = [modes[0].fc, s.length ? s[0].fc : Infinity];
+}
+
+// ---------- field sampling ----------
+// complex amplitude helpers: F = [re, im]; instantaneous Re{F e^{j wt}} (times e^{-gamma z} along z)
+const inst = (F, ph) => F[0] * Math.cos(ph) - F[1] * Math.sin(ph);
+let norm = { e: 1, h: 1, ez: 1 };
+function buildNorm() {
+  let e = 1e-30, h = 1e-30;
+  for (let j = 0; j <= 24; j++) for (let i = 0; i <= 24; i++) {
+    const F = G.fields(st.type, st.m, st.n, st.a, st.b, st.f, st.er, st.a * i / 24, st.b * j / 24);
+    e = Math.max(e, Math.hypot(...F.E[0], ...F.E[1], ...F.E[2])); h = Math.max(h, Math.hypot(...F.H[0], ...F.H[1], ...F.H[2]));
+  }
+  norm = { e, h };
+}
+
+// ---------- cross-section ----------
+const cvX = $('#cvX'), cvM = $('#cvM'), cvZ = $('#cvZ');
+let offX = document.createElement('canvas'), offKey = '';
+function drawX(t) {
+  const { ctx, w, h } = fitCanvas(cvX), C = Theme.c; ctx.clearRect(0, 0, w, h);
+  const wt = 2 * Math.PI * 0.35 * t, ph = Math.cos(wt);
+  const pad = 26, s = Math.min((w - 2 * pad) / st.a, (h - 2 * pad - 14) / st.b), W = st.a * s, Hh = st.b * s, x0 = (w - W) / 2, y0 = (h - Hh) / 2 + 6;
+  const X = x => x0 + x / st.a * W, Y = y => y0 + Hh - y / st.b * Hh;
+  // |E_t| map (static)
+  const ow = Math.max(40, Math.round(W / 2)), oh = Math.max(20, Math.round(Hh / 2)), key = [ow, oh, st.type, st.m, st.n, st.a, st.b, Theme.eff()].join('|');
+  if (key !== offKey) {
+    offKey = key; offX.width = ow; offX.height = oh; const o = offX.getContext('2d'), img = o.createImageData(ow, oh), px = img.data;
+    for (let j = 0; j < oh; j++) for (let i = 0; i < ow; i++) {
+      const F = G.fields(st.type, st.m, st.n, st.a, st.b, st.f, st.er, (i + 0.5) / ow * st.a, (1 - (j + 0.5) / oh) * st.b);
+      const v = Math.hypot(...F.E[0], ...F.E[1]) / norm.e, c = seqRgb(Math.pow(v, 0.8) * 0.85), p = (j * ow + i) * 4;
+      px[p] = c[0]; px[p + 1] = c[1]; px[p + 2] = c[2]; px[p + 3] = 255;
+    }
+    o.putImageData(img, 0, 0);
+  }
+  ctx.imageSmoothingEnabled = true; ctx.drawImage(offX, x0, y0, W, Hh);
+  // contour lines of the longitudinal field: E lines (TE) or H lines (TM)
+  const Gx = 60, Gy = Math.max(12, Math.round(60 * st.b / st.a)), vals = [];
+  for (let j = 0; j <= Gy; j++) for (let i = 0; i <= Gx; i++) {
+    const x = st.a * i / Gx, y = st.b * j / Gy, cx = Math.cos(st.m * Math.PI * x / st.a), sx = Math.sin(st.m * Math.PI * x / st.a), cy = Math.cos(st.n * Math.PI * y / st.b), sy = Math.sin(st.n * Math.PI * y / st.b);
+    vals.push(st.type === 'TE' ? cx * cy : sx * sy);
+  }
+  ctx.save(); ctx.beginPath(); ctx.rect(x0, y0, W, Hh); ctx.clip();
+  ctx.strokeStyle = st.type === 'TE' ? C.field : C.hfield; ctx.lineWidth = 1.6; ctx.globalAlpha = 0.25 + 0.75 * Math.abs(ph);
+  const levels = []; for (let k = -7; k <= 7; k++) if (k) levels.push(k / 8 + (k > 0 ? -0.06 : 0.06));
+  ctx.beginPath();
+  for (const lev of levels) for (let j = 0; j < Gy; j++) for (let i = 0; i < Gx; i++) {
+    const q = j * (Gx + 1) + i, v = [vals[q], vals[q + 1], vals[q + Gx + 2], vals[q + Gx + 1]], Pp = [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]], cut = [];
+    for (let e = 0; e < 4; e++) { const A = v[e], B = v[(e + 1) % 4]; if ((A < lev) !== (B < lev)) { const tt = (lev - A) / (B - A); cut.push([Pp[e][0] + (Pp[(e + 1) % 4][0] - Pp[e][0]) * tt, Pp[e][1] + (Pp[(e + 1) % 4][1] - Pp[e][1]) * tt]); } }
+    if (cut.length >= 2) { ctx.moveTo(X(cut[0][0] / Gx * st.a), Y(cut[0][1] / Gy * st.b)); ctx.lineTo(X(cut[1][0] / Gx * st.a), Y(cut[1][1] / Gy * st.b)); }
+  }
+  ctx.stroke(); ctx.globalAlpha = 1;
+  // arrows of the other field: H (TE) or E (TM), instantaneous
+  const nx = Math.max(6, Math.round(W / 34)), ny = Math.max(3, Math.round(Hh / 34));
+  ctx.strokeStyle = st.type === 'TE' ? C.hfield : C.field; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 1.4;
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const x = st.a * (i + 0.5) / nx, y = st.b * (j + 0.5) / ny, F = G.fields(st.type, st.m, st.n, st.a, st.b, st.f, st.er, x, y);
+    const V = st.type === 'TE' ? F.H : F.E, nm = st.type === 'TE' ? norm.h : norm.e;
+    const vx = inst(V[0], wt) / nm, vy = inst(V[1], wt) / nm, L = Math.hypot(vx, vy), len = Math.min(1, L) * Math.min(W / nx, Hh / ny) * 0.8;
+    if (len < 3) continue;
+    const ux = vx / L, uy = -vy / L, px = X(x), py = Y(y); arrow(ctx, px - ux * len / 2, py - uy * len / 2, px + ux * len / 2, py + uy * len / 2, 5);
+  }
+  ctx.restore();
+  ctx.strokeStyle = C.metal; ctx.lineWidth = 5; ctx.strokeRect(x0 - 2.5, y0 - 2.5, W + 5, Hh + 5);
+  ctx.fillStyle = C.muted; ctx.font = `500 11px ${C.mono}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText('a = ' + fmtLen(st.a), x0 + W / 2, y0 + Hh + 18);
+  ctx.save(); ctx.translate(x0 - 12, y0 + Hh / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('b = ' + fmtLen(st.b), 0, 0); ctx.restore();
+  ctx.textAlign = 'left'; ctx.fillText('cross-section', 8, 14);
+}
+
+// ---------- mode chart ----------
+let chartRows = [];
+function drawM() {
+  const { ctx, w, h } = fitCanvas(cvM), C = Theme.c; ctx.clearRect(0, 0, w, h);
+  const [lo, hi] = fRange(), list = modes.slice().sort((p, q) => p.fc - q.fc).slice(0, 9);
+  const l = Math.min(118, w * 0.34), r = 12, t = 26, b = 30, rowH = (h - t - b) / list.length;
+  const sx = f => l + Math.log(f / lo) / Math.log(hi / lo) * (w - l - r);
+  // band
+  if (WR[st.p]) { ctx.fillStyle = rgbStr(Theme.c.rgb.ok, 0.10); const x0 = sx(WR[st.p][2] * 1e9), x1 = sx(WR[st.p][3] * 1e9); ctx.fillRect(x0, t - 6, x1 - x0, h - t - b + 6); ctx.fillStyle = C.ok; ctx.font = `600 10px ${C.mono}`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText('rec. band', x0 + 3, h - b - 4); }
+  // axis
+  ctx.font = `500 10px ${C.mono}`; ctx.fillStyle = C.muted; ctx.textAlign = 'center'; ctx.strokeStyle = C.grid; ctx.lineWidth = 1;
+  const tk = logTicks(lo, hi);
+  for (const v of tk.major.concat(tk.minor)) { const x = sx(v); ctx.beginPath(); ctx.moveTo(x, t - 4); ctx.lineTo(x, h - b); ctx.stroke(); if (tk.major.includes(v) || tk.minor.length < 14) ctx.fillText(fmt(v / 1e9, 3), x, h - b + 13); }
+  ctx.fillText('frequency (GHz)', l + (w - l - r) / 2, h - 5);
+  chartRows = [];
+  list.forEach((md, i) => {
+    const y = t + i * rowH, yc = y + rowH / 2, on = st.f > md.fc, sel = md.type === st.type && md.m === st.m && md.n === st.n;
+    const bh = Math.min(16, rowH * 0.62);
+    const x0 = Math.max(l, sx(md.fc));
+    ctx.fillStyle = sel ? C.field : (on ? C.ink : rgbStr(Theme.c.rgb.muted, 0.18));
+    if (x0 < w - r) ctx.fillRect(x0, yc - bh / 2, w - r - x0, bh);
+    if (sel && !on) { ctx.fillStyle = rgbStr(Theme.c.rgb.field, 0.35); ctx.fillRect(x0, yc - bh / 2, w - r - x0, bh); }
+    ctx.fillStyle = sel ? C.field : (on ? C.ink : C.muted); ctx.font = `${sel ? 700 : 600} 11px ${C.mono}`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(md.name, 6, yc); ctx.font = `500 10px ${C.mono}`; ctx.fillStyle = C.muted; ctx.fillText(fmt(md.fc / 1e9, 4), 6 + 40, yc);
+    chartRows.push({ y0: y, y1: y + rowH, md });
+  });
+  // frequency line
+  const xf = sx(st.f); ctx.strokeStyle = C.ink; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(xf, t - 6); ctx.lineTo(xf, h - b); ctx.stroke();
+  ctx.fillStyle = C.ink; ctx.font = `700 11px ${C.mono}`; ctx.textAlign = xf > w - 70 ? 'right' : 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(fmt(st.f / 1e9, 4) + ' GHz', xf + (ctx.textAlign === 'left' ? 4 : -4), t - 12);
+  ctx.textAlign = 'left'; ctx.fillStyle = C.muted; ctx.font = `500 11px ${C.mono}`; ctx.fillText('mode chart', 8, 14);
+}
+cvM.addEventListener('click', e => {
+  const r = cvM.getBoundingClientRect(), y = e.clientY - r.top;
+  const row = chartRows.find(c => y >= c.y0 && y < c.y1); if (row) selectMode(row.md);
+});
+cvM.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return; e.preventDefault();
+  const i = chartRows.findIndex(c => c.md.type === st.type && c.md.m === st.m && c.md.n === st.n);
+  const j = Math.max(0, Math.min(chartRows.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1))); selectMode(chartRows[j].md);
+});
+function selectMode(md) { st.type = md.type; st.m = md.m; st.n = md.n; update(); }
+
+// ---------- side view ----------
+function drawZ(t) {
+  const { ctx, w, h } = fitCanvas(cvZ), C = Theme.c; ctx.clearRect(0, 0, w, h);
+  const wt = 2 * Math.PI * 0.35 * t;
+  const lam = 299792458 / (st.f * Math.sqrt(st.er)), L = 3 * lam;
+  const useX = st.m >= 1;                        // top view (x-z) with Ey normal; else side view (y-z) with Ex normal
+  const T = useX ? st.a : st.b;
+  const padL = 12, padR = 12, padT = 24, padB = 22, availW = w - padL - padR, availH = h - padT - padB;
+  const s = Math.min(availW / L, availH / T), Wd = L * s, Hd = T * s, x0 = padL, y0 = padT + (availH - Hd) / 2;
+  const y0f = st.n === 0 ? st.b / 2 : st.b / (4 * st.n), x0f = st.a / 2;
+  const gam = P.propagating ? { a: 0, b: P.beta } : { a: P.alpha, b: 0 };
+  // transverse samples of the complex amplitudes
+  const NT = 40, NZ = Math.max(60, Math.round(Wd / 3)), cols = [];
+  for (let i = 0; i <= NT; i++) {
+    const u = T * i / NT, F = useX ? G.fields(st.type, st.m, st.n, st.a, st.b, st.f, st.er, u, y0f) : G.fields(st.type, st.m, st.n, st.a, st.b, st.f, st.er, x0f, u);
+    cols.push(F);
+  }
+  const comp = useX ? 1 : 0;                  // Ey or Ex
+  const cw = Wd / NZ, ch = Hd / NT;
+  for (let k = 0; k < NZ; k++) {
+    const z = (k + 0.5) / NZ * L, env = Math.exp(-gam.a * z), ph = wt - gam.b * z;
+    for (let i = 0; i < NT; i++) {
+      const v = inst(cols[i].E[comp], ph) * env / norm.e;
+      ctx.fillStyle = rgbStr(divRgb(v)); ctx.fillRect(x0 + k * cw, y0 + Hd - (i + 1) * ch, cw + 0.6, ch + 0.6);
+    }
+  }
+  // in-plane arrows: H (TE) or E (TM)
+  ctx.strokeStyle = st.type === 'TE' ? C.hfield : C.ink; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 1.3;
+  const na = Math.max(8, Math.round(Wd / 30)), nt = Math.max(3, Math.round(Hd / 30));
+  for (let k = 0; k < na; k++) for (let i = 0; i < nt; i++) {
+    const z = (k + 0.5) / na * L, u = T * (i + 0.5) / nt, env = Math.exp(-gam.a * z), ph = wt - gam.b * z;
+    const F = useX ? G.fields(st.type, st.m, st.n, st.a, st.b, st.f, st.er, u, y0f) : G.fields(st.type, st.m, st.n, st.a, st.b, st.f, st.er, x0f, u);
+    const V = st.type === 'TE' ? F.H : F.E, nm = st.type === 'TE' ? norm.h : norm.e;
+    const vt = inst(useX ? V[0] : V[1], ph) * env / nm, vz = inst(V[2], ph) * env / nm, M = Math.hypot(vt, vz), len = Math.min(1, M) * Math.min(Wd / na, Hd / nt) * 0.85;
+    if (len < 3) continue;
+    const px = x0 + z * s, py = y0 + Hd - u * s, ux = vz / M, uy = -vt / M;
+    arrow(ctx, px - ux * len / 2, py - uy * len / 2, px + ux * len / 2, py + uy * len / 2, 5);
+  }
+  ctx.strokeStyle = C.metal; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x0, y0 - 2); ctx.lineTo(x0 + Wd, y0 - 2); ctx.moveTo(x0, y0 + Hd + 2); ctx.lineTo(x0 + Wd, y0 + Hd + 2); ctx.stroke();
+  ctx.fillStyle = C.muted; ctx.font = `500 11px ${C.mono}`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  const plane = useX ? `top view · E${'y'} at y = ${st.n === 0 ? 'b/2' : 'b/' + 4 * st.n}` : `side view · Ex at x = a/2`;
+  ctx.fillText(w < 560 ? plane.replace(/^top view · |^side view · /, '') : `${plane} · ${st.type === 'TE' ? 'H' : 'E'} arrows · 3λ shown`, x0, 15);
+  ctx.textAlign = 'right';
+  ctx.fillText(P.propagating ? `λg = ${fmtLen(P.lambdaG)}` : `fades ${fmt(P.alpha * NP2DB / 1000, 3)} dB/mm`, x0 + Wd, 15);
+  // lambda_g marks
+  if (P.propagating && P.lambdaG < L) {
+    ctx.strokeStyle = C.muted; ctx.lineWidth = 1; const yb = y0 + Hd + 12;
+    ctx.beginPath(); ctx.moveTo(x0, yb - 3); ctx.lineTo(x0, yb); ctx.lineTo(x0 + P.lambdaG * s, yb); ctx.lineTo(x0 + P.lambdaG * s, yb - 3); ctx.stroke();
+  }
+}
+
+// ---------- plots ----------
+function drawPlots() {
+  const C = Theme.c, [lo, hi] = fRange(), ev = [], lossC = [], lossT = [], vp = [], vg = [];
+  for (let i = 0; i <= 300; i++) {
+    const f = lo * Math.pow(hi / lo, i / 300), p = G.prop(st.type, st.m, st.n, st.a, st.b, f, st.er);
+    if (p.propagating) {
+      const ac = G.alphaC(st.type, st.m, st.n, st.a, st.b, f, st.rho, st.er) * NP2DB, ad = st.td > 0 ? G.alphaD(st.type, st.m, st.n, st.a, st.b, f, st.er, st.td) * NP2DB : 0;
+      lossC.push([f, ac]); lossT.push([f, ac + ad]); ev.push([f, NaN]);
+      const v = 1; vp.push([f, p.vp / (299792458 / Math.sqrt(st.er))]); vg.push([f, p.vg / (299792458 / Math.sqrt(st.er))]);
+    } else { ev.push([f, p.alpha * NP2DB]); lossC.push([f, NaN]); lossT.push([f, NaN]); vp.push([f, NaN]); vg.push([f, 0]); }
+  }
+  const cur = P.propagating ? (P.ac + P.ad) * NP2DB : P.alpha * NP2DB;
+  drawPlot($('#pA'), { x: { min: lo, max: hi, log: true, label: 'frequency (GHz)', fmt: v => fmt(v / 1e9, 3) }, y: { min: 0.01, max: 1e5, log: true, label: 'dB/m' },
+    series: [{ pts: ev, color: C.bad, width: 2.2 }, { pts: lossC, color: C.metal, width: 1.5, dash: [5, 3] }, { pts: lossT, color: C.ink, width: 2.2 }],
+    vlines: [{ x: P.fc, color: C.muted, label: 'fc' }], points: [{ x: st.f, y: cur, color: C.field, label: fmt(cur, 3) + ' dB/m' }] });
+  $('#lgA').innerHTML = `<span><i style="color:${C.bad}"></i>evanescent decay</span><span><i class="dash" style="color:${C.metal}"></i>walls</span><span><i style="color:${C.ink}"></i>walls + dielectric</span>`;
+  drawPlot($('#pV'), { x: { min: lo, max: hi, log: true, label: 'frequency (GHz)', fmt: v => fmt(v / 1e9, 3) }, y: { min: 0, max: 3, label: 'velocity / v' },
+    series: [{ pts: vp, color: C.field, width: 2.2 }, { pts: vg, color: C.hfield, width: 2.2 }], hlines: [{ y: 1, color: C.muted }],
+    vlines: [{ x: P.fc, color: C.muted, label: 'fc' }],
+    points: P.propagating ? [{ x: st.f, y: Math.min(2.95, P.vp / (299792458 / Math.sqrt(st.er))), color: C.field }, { x: st.f, y: P.vg / (299792458 / Math.sqrt(st.er)), color: C.hfield }] : [] });
+  $('#lgV').innerHTML = `<span><i style="color:${C.field}"></i>phase velocity vp</span><span><i style="color:${C.hfield}"></i>group velocity vg</span><span><i class="dash" style="color:${C.muted}"></i>v = c/√εr</span>`;
+}
+
+// ---------- check ----------
+function fillCheck() {
+  const a = 1.07e-2, b = 0.43e-2, er = 2.08, f = 15e9, rho = 1 / 5.813e7;
+  const ms = G.modeList(a, b, er, 6), p = G.prop('TE', 1, 0, a, b, f, er);
+  const rows = [
+    ['fc TE10 (GHz)', G.fc(1, 0, a, b, er) / 1e9, 9.72], ['fc TE20', G.fc(2, 0, a, b, er) / 1e9, 19.44], ['fc TE01', G.fc(0, 1, a, b, er) / 1e9, 24.19],
+    ['fc TE11 / TM11', G.fc(1, 1, a, b, er) / 1e9, 26.07], ['fc TE30', G.fc(3, 0, a, b, er) / 1e9, 29.16],
+    ['k (1/m)', p.k, 453.1], ['β (1/m)', p.beta, 345.1], ['αd (dB/m)', G.alphaD('TE', 1, 0, a, b, f, er, 4e-4) * NP2DB, 1.03], ['αc (dB/m)', G.alphaC('TE', 1, 0, a, b, f, rho, er) * NP2DB, 0.434],
+  ];
+  let s = '<thead><tr><th>Pozar Ex. 3.1</th><th>this page</th><th>book</th><th>Δ</th><th></th></tr></thead><tbody>';
+  for (const [k, v, r] of rows) { const d = v / r - 1, ok = Math.abs(d) < 0.006; s += `<tr><td>${k}</td><td>${fmt(v, 5)}</td><td>${r}</td><td>${fmt(100 * d, 2)}%</td><td class="${ok ? 'pass' : 'fail'}">${ok ? 'pass' : 'fail'}</td></tr>`; }
+  const w90 = G.fc(1, 0, 0.9 * IN, 0.4 * IN), w28 = G.fc(1, 0, 0.28 * IN, 0.14 * IN);
+  s += `<tr><td>WR-90 fc TE10 (GHz)</td><td>${fmt(w90 / 1e9, 5)}</td><td>6.557</td><td>${fmt(100 * (w90 / 6.557e9 - 1), 2)}%</td><td class="pass">pass</td></tr>`;
+  s += `<tr><td>WR-28 fc TE10 (GHz)</td><td>${fmt(w28 / 1e9, 5)}</td><td>21.08</td><td>${fmt(100 * (w28 / 21.08e9 - 1), 2)}%</td><td class="pass">pass</td></tr>`;
+  $('#refTable').innerHTML = s + '</tbody><caption class="note" style="caption-side:bottom;text-align:left;padding-top:6px">Teflon-filled copper guide, a = 1.07 cm, b = 0.43 cm, εr = 2.08, tan δ = 0.0004, σ = 5.813e7 S/m, 15 GHz. The book uses c = 3e8 m/s, so expect ~0.1%.</caption>';
+}
+
+// ---------- controls ----------
+Theme.init();
+const pre = $('#pre');
+pre.innerHTML = Object.keys(WR).map(k => `<option value="${k}">${k} · ${WR[k][2]}–${WR[k][3]} GHz</option>`).join('') + '<option value="custom">Custom</option>';
+pre.addEventListener('change', () => { st.p = pre.value; if (WR[st.p]) { const f0 = st.f / fc10(); st.a = WR[st.p][0] * IN; st.b = WR[st.p][1] * IN; st.f = f0 * fc10(); } update(); });
+const msel = $('#modeSel');
+msel.addEventListener('change', () => { const [ty, m, n] = msel.value.split(','); selectMode({ type: ty, m: +m, n: +n }); });
+Fields.push({ show: () => { pre.value = st.p; } });
+bindNumber($('#aN'), { kind: 'len', units: () => st.lu, get: () => st.a, set: v => { st.a = v; st.p = 'custom'; }, min: 0.1e-3, max: 1, onchange: update });
+bindNumber($('#bN'), { kind: 'len', units: () => st.lu, get: () => st.b, set: v => { st.b = v; st.p = 'custom'; }, min: 0.05e-3, max: 1, onchange: update });
+const fr = bindRange($('#fR'), { min: 1, max: 2, log: true, get: () => st.f, set: v => st.f = v, text: v => fmtSI(v, 'Hz'), onchange: update });
+bindNumber($('#fN'), { kind: 'freq', units: () => 'GHz', get: () => st.f, set: v => st.f = v, min: 1e6, max: 2e12, onchange: update });
+bindNumber($('#erN'), { get: () => st.er, set: v => { st.er = v; }, min: 1, max: 100, onchange: update });
+bindNumber($('#tdN'), { get: () => st.td, set: v => { st.td = v; }, min: 0, max: 1, onchange: update });
+bindNumber($('#rhoN'), { get: () => st.rho, set: v => { st.rho = v; }, scale: 1e-8, min: 5e-9, max: 1e-5, onchange: update });
+bindSeg($('#luSeg'), () => st.lu, v => { st.lu = v; update(); });
+bindPlay($('#play'));
+
+const OUT = [['fc', 'Cutoff fc', true], ['lg', 'Guide wavelength λg'], ['vp', 'vp / v'], ['vg', 'vg / v'], ['z', 'Wave impedance'],
+  ['ac', 'Wall loss'], ['ad', 'Dielectric loss'], ['sm', 'Single-mode range']];
+$('#out').innerHTML = OUT.map(([k, l, big]) => `<div class="${big ? 'big' : ''}"><span>${l}</span><b id="o-${k}"></b></div>`).join('');
+
+function update() {
+  if (!G.valid(st.type, st.m, st.n)) { st.type = 'TE'; st.m = 1; st.n = 0; }
+  const [lo, hi] = fRange(); fr.min = lo; fr.max = hi; clampF();
+  derive(); buildNorm();
+  msel.innerHTML = modes.map(md => `<option value="${md.type},${md.m},${md.n}">${md.name} · fc ${fmt(md.fc / 1e9, 4)} GHz</option>`).join('');
+  msel.value = `${st.type},${st.m},${st.n}`;
+  $$('.lu').forEach(e => e.textContent = st.lu);
+  refreshFields();
+  const v = 299792458 / Math.sqrt(st.er), name = st.type + '<sub>' + st.m + st.n + '</sub>';
+  $('#modeName').innerHTML = name;
+  const sEl = $('#state'); sEl.textContent = P.propagating ? 'propagates' : 'cut off'; sEl.className = 'state ' + (P.propagating ? 'on' : 'off');
+  $('#o-fc').textContent = fmtSI(P.fc, 'Hz', 5);
+  $('#o-lg').textContent = P.propagating ? fmtLen(P.lambdaG) : '∞ (evanescent)';
+  $('#o-vp').textContent = P.propagating ? fmt(P.vp / v, 4) : '—';
+  $('#o-vg').textContent = P.propagating ? fmt(P.vg / v, 4) : '0';
+  $('#o-z').textContent = P.propagating ? fmt(P.Z, 4) + ' Ω' : (P.Zim > 0 ? 'j' : '−j') + fmt(Math.abs(P.Zim), 4) + ' Ω';
+  $('#o-ac').textContent = P.propagating ? fmt(P.ac * NP2DB, 3) + ' dB/m' : '—';
+  $('#o-ad').textContent = P.propagating ? fmt(P.ad * NP2DB, 3) + ' dB/m' : '—';
+  $('#o-sm').textContent = `${fmt(P.single[0] / 1e9, 4)}–${fmt(P.single[1] / 1e9, 4)} GHz`;
+  const C = Theme.c, te = st.type === 'TE';
+  $('#legend').innerHTML = `<span><i style="color:${te ? C.field : C.hfield}"></i>${te ? 'E lines (Hz contours)' : 'H lines (Ez contours)'}</span><span><i style="color:${te ? C.hfield : C.field}"></i>${te ? 'H' : 'E'} arrows</span><span>|Et|</span><span class="ramp" style="background:${rampCss('seq')}"></span><span>side view</span><span class="ramp" style="background:${rampCss('div')}"></span>`;
+  const nProp = modes.filter(md => st.f > md.fc).length;
+  $('#caption').textContent = P.propagating
+    ? `${st.type}${st.m}${st.n} travels: λg = ${fmtLen(P.lambdaG)}, longer than the free-space ${fmtLen(P.lambda)}. ${nProp === 1 ? 'Only one mode can propagate.' : nProp + ' modes can propagate at this frequency.'}`
+    : `${st.type}${st.m}${st.n} is below cutoff. The field does not travel; it decays by ${fmt(P.alpha * NP2DB / 1000, 3)} dB per mm.`;
+  cvX.setAttribute('aria-label', `${st.type}${st.m}${st.n} cross-section pattern, ${P.propagating ? 'propagating' : 'cut off'}`);
+  drawX(Clock.t); drawM(); drawZ(Clock.t); drawPlots();
+  Hash.write({ p: st.p, a: st.a, b: st.b, er: st.er, td: st.td, rho: st.rho, f: st.f, ty: st.type, m: st.m, n: st.n, lu: st.lu });
+}
+Clock.on(t => { drawX(t); drawZ(t); });
+Theme.on(() => { offKey = ''; update(); });
+onResize(cvX, () => { drawX(Clock.t); drawM(); drawZ(Clock.t); });
+onResize($('#pA'), drawPlots);
+fillCheck();
+update();
+</script>
+</body>
+</html>

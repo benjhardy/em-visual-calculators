@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--@HEAD-->
+<title>Skin Effect Calculator</title>
+<meta name="description" content="Skin depth and AC resistance of a round wire from the exact Bessel solution, with a live view of where the current flows.">
+<style>
+.stage2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 0; align-items: center; }
+.stage2 canvas { display: block; width: 100%; }
+#cvA { aspect-ratio: 1 / 1; }
+#cvB { aspect-ratio: 5 / 4; }
+.stage2.flat { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); }
+@media (max-width: 640px) { .stage2, .stage2.flat { grid-template-columns: 1fr; } #cvA { aspect-ratio: 4 / 3; } }
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="index.html">&larr; Visual calculators</a><button class="btn" id="themeBtn" type="button">Dark</button></div>
+<main class="wrap">
+  <header class="hero">
+    <p class="eyebrow">Visual calculator 01 &middot; Conductors</p>
+    <h1>Skin effect</h1>
+    <p class="lede">AC current crowds toward the surface of a conductor. Move the frequency and watch where it flows.</p>
+  </header>
+
+  <section class="calc" aria-label="Calculator">
+    <div class="card">
+      <div class="vbar">
+        <div class="seg" id="viewSeg" role="group" aria-label="View"><button type="button" data-v="wire">Round wire</button><button type="button" data-v="flat">Flat conductor</button></div>
+        <div class="row">
+          <div class="seg" id="showSeg" role="group" aria-label="Color shows"><button type="button" data-v="t">J(t)</button><button type="button" data-v="mag">|J|</button></div>
+          <button class="btn" id="play" type="button">Pause</button>
+        </div>
+      </div>
+      <div class="stage2" id="stage">
+        <canvas id="cvA" role="img" aria-label="Cross-section of the conductor colored by current density"></canvas>
+        <canvas id="cvB" role="img" aria-label="Current density profile"></canvas>
+      </div>
+      <div class="legend" id="legend"></div>
+      <p class="caption" id="caption" aria-live="polite"></p>
+    </div>
+
+    <div class="card pad">
+      <div class="grp">
+        <div class="lbl" id="matLbl">Material</div>
+        <div class="chips" id="matChips" role="group" aria-labelledby="matLbl"></div>
+        <div class="two">
+          <div class="field"><label for="rho">Resistivity <span class="u">µΩ·cm</span></label><input type="number" id="rho" step="any" min="0.1" max="10000"></div>
+          <div class="field"><label for="mur">Rel. permeability <span class="u">µr</span></label><input type="number" id="mur" step="any" min="1" max="100000"></div>
+        </div>
+      </div>
+      <div class="grp">
+        <div class="field"><label for="fN">Frequency <span class="u" id="fU"></span></label>
+          <div class="slide"><input type="range" id="fR" aria-label="Frequency slider"><input type="number" id="fN" step="any"></div></div>
+        <div class="seg" id="fuSeg" role="group" aria-label="Frequency unit"><button type="button" data-v="Hz">Hz</button><button type="button" data-v="kHz">kHz</button><button type="button" data-v="MHz">MHz</button><button type="button" data-v="GHz">GHz</button></div>
+      </div>
+      <div class="grp">
+        <div class="field"><label for="dN">Wire diameter <span class="u" id="dU"></span></label>
+          <div class="slide"><input type="range" id="dR" aria-label="Diameter slider"><input type="number" id="dN" step="any"></div></div>
+        <div class="seg" id="luSeg" role="group" aria-label="Length unit"><button type="button" data-v="mm">mm</button><button type="button" data-v="mil">mil</button></div>
+      </div>
+      <div class="readout" id="out"></div>
+    </div>
+  </section>
+
+  <section class="plots" aria-label="Plots">
+    <div class="card plot">
+      <h3>AC resistance over DC resistance</h3>
+      <p class="sub">Exact Bessel solution against the thin-skin approximations.</p>
+      <canvas id="pR" role="img" aria-label="Rac over Rdc versus frequency"></canvas>
+      <div class="legend" id="lgR"></div>
+    </div>
+    <div class="card plot">
+      <h3>Skin depth</h3>
+      <p class="sub">δ = √(2ρ / ωµ). Where δ drops below the radius, the skin takes over.</p>
+      <canvas id="pD" role="img" aria-label="Skin depth versus frequency"></canvas>
+      <div class="legend" id="lgD"></div>
+    </div>
+  </section>
+
+  <section class="card pad check" id="check" aria-labelledby="chkH">
+    <h2 id="chkH">Check</h2>
+    <div class="cols">
+      <div class="grp">
+        <p class="lbl">Method</p>
+<div class="eq">δ   = √(2ρ / (ω µ0 µr))
+k   = (1 − j) / δ
+J(r) = J(0) · J0(k r)          (exact, round wire)
+Z/Rdc = (k a / 2) · J0(ka) / J1(ka)
+Rac/Rdc = Re{Z/Rdc}
+thin skin:  Rac/Rdc ≈ a/(2δ) + 1/4
+flat:  J(z) = J(0) · e^(−z/δ) · e^(−j z/δ)</div>
+        <p class="note">J0 and J1 of complex argument: power series for |ka| ≤ 25, Hankel asymptotic expansion above (scaled, so very large a/δ does not overflow).</p>
+      </div>
+      <div class="grp">
+        <p class="lbl">Reference values · q = √2·a/δ</p>
+        <div class="tblwrap"><table class="ref" id="refTable"></table></div>
+        <p class="note">Columns: this page's Bessel solution; an independent Kelvin-function (ber/bei) series, Rac/Rdc = (q/2)(ber·bei′ − bei·ber′)/(ber′² + bei′²); classic tabulated values; and the asymptote a/(2δ) + 1/4 + 3δ/(32a) for large q.</p>
+      </div>
+    </div>
+    <ol class="refs">
+      <li>S. Ramo, J. R. Whinnery, T. Van Duzer, <i>Fields and Waves in Communication Electronics</i>, 3rd ed., Wiley, 1994, Sec. 5.5–5.6 (internal impedance of a round wire).</li>
+      <li>M. Abramowitz, I. A. Stegun, <i>Handbook of Mathematical Functions</i>, NBS, 1964, §9.2 (asymptotic expansions) and §9.9 (Kelvin functions).</li>
+      <li>F. E. Terman, <i>Radio Engineers' Handbook</i>, McGraw-Hill, 1943, Sec. 2 (skin-effect resistance ratio table).</li>
+      <li>Resistivities at 20 °C: annealed copper standard (IEC 60028, 1.7241 µΩ·cm); Ag, Au, Al from the CRC Handbook of Chemistry and Physics. Steel is illustrative: its µr depends strongly on field level and frequency.</li>
+    </ol>
+  </section>
+
+  <footer class="foot"><span>Made by Ben Hardy</span><span>MIT licence</span><a href="index.html">All calculators</a></footer>
+</main>
+
+<!--@CORE core-skin.js-->
+<!--@COMMONJS-->
+<script>
+const S = SkinCore, CX = S.cx;
+const MATS = {
+  cu: { name: 'Copper', rho: 1.7241e-8, mur: 1 },
+  ag: { name: 'Silver', rho: 1.59e-8, mur: 1 },
+  au: { name: 'Gold', rho: 2.44e-8, mur: 1 },
+  al: { name: 'Aluminum', rho: 2.65e-8, mur: 1 },
+  steel: { name: 'Steel', rho: 1.5e-7, mur: 100 },
+};
+const F_MIN = 10, F_MAX = 100e9, D_MIN = 10e-6, D_MAX = 25e-3;
+const H = Hash.read();
+const st = {
+  view: H.v === 'flat' ? 'flat' : 'wire',
+  show: H.show === 'mag' ? 'mag' : 't',
+  f: Math.min(F_MAX, Math.max(F_MIN, num(H.f, 1e6))),
+  d: Math.min(D_MAX, Math.max(D_MIN, num(H.d, 1e-3))),
+  m: MATS[H.m] ? H.m : (H.m === 'custom' ? 'custom' : 'cu'),
+  rho: num(H.rho, 1.7241e-8), mur: Math.max(1, num(H.mur, 1)),
+  lu: H.lu === 'mil' ? 'mil' : 'mm', fu: Units.freq[H.fu] ? H.fu : 'MHz',
+};
+if (MATS[st.m]) { st.rho = MATS[st.m].rho; st.mur = MATS[st.m].mur; }
+
+// ---------- derived ----------
+let D = {};
+function derive() {
+  const a = st.d / 2, delta = S.skinDepth(st.rho, st.f, st.mur), x = a / delta;
+  const Z = S.zRatio(x), Rdc = S.rdcPerM(st.rho, a);
+  // radial look-up table in depth u = (a - r)/delta, dense near the surface
+  const umax = Math.min(x, 14), N = 600, lut = [];
+  for (let i = 0; i < N; i++) {
+    const u = umax * Math.pow(i / (N - 1), 1.6), rho = Math.max(0, 1 - u / x);
+    const J = S.currentRatio(x, rho); lut.push({ u, r: rho, mag: CX.abs(J), ph: CX.arg(J) });
+  }
+  // unwrap phase from the surface inward
+  for (let i = 1; i < N; i++) { let d = lut[i].ph - lut[i - 1].ph; while (d > Math.PI) { lut[i].ph -= 2 * Math.PI; d -= 2 * Math.PI; } while (d < -Math.PI) { lut[i].ph += 2 * Math.PI; d += 2 * Math.PI; } }
+  D = { a, delta, x, Z, Rdc, Rac: Rdc * Z[0], Li: Rdc * Z[1] / (2 * Math.PI * st.f), Rs: S.surfaceR(st.rho, st.f, st.mur), lut, umax };
+}
+function lutAt(u) {           // linear interpolation in depth
+  const L = D.lut, N = L.length; if (u >= D.umax) return u >= D.x ? L[N - 1] : { mag: 0, ph: 0 };
+  const s = Math.pow(u / D.umax, 1 / 1.6) * (N - 1), i = Math.min(N - 2, Math.floor(s)), t = s - i;
+  return { mag: L[i].mag + (L[i + 1].mag - L[i].mag) * t, ph: L[i].ph + (L[i + 1].ph - L[i].ph) * t };
+}
+
+// ---------- controls ----------
+Theme.init();
+const chipBox = $('#matChips');
+for (const [k, m] of Object.entries(MATS)) chipBox.insertAdjacentHTML('beforeend', `<button type="button" data-v="${k}">${m.name}</button>`);
+chipBox.insertAdjacentHTML('beforeend', `<button type="button" data-v="custom">Custom</button>`);
+const showChips = () => $$('button', chipBox).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === st.m)));
+$$('button', chipBox).forEach(b => b.addEventListener('click', () => { st.m = b.dataset.v; if (MATS[st.m]) { st.rho = MATS[st.m].rho; st.mur = MATS[st.m].mur; } update(); }));
+Fields.push({ show: showChips });
+bindNumber($('#rho'), { get: () => st.rho, set: v => { st.rho = v; st.m = 'custom'; }, scale: 1e-8, min: 1e-9, max: 1e-4, onchange: update });
+bindNumber($('#mur'), { get: () => st.mur, set: v => { st.mur = v; st.m = 'custom'; }, min: 1, max: 1e5, onchange: update });
+bindRange($('#fR'), { min: F_MIN, max: F_MAX, log: true, get: () => st.f, set: v => st.f = v, text: v => fmtSI(v, 'Hz'), onchange: update });
+bindNumber($('#fN'), { kind: 'freq', units: () => st.fu, get: () => st.f, set: v => st.f = v, min: F_MIN, max: F_MAX, onchange: update });
+bindRange($('#dR'), { min: D_MIN, max: D_MAX, log: true, get: () => st.d, set: v => st.d = v, text: v => fmtLen(v), onchange: update });
+bindNumber($('#dN'), { kind: 'len', units: () => st.lu, get: () => st.d, set: v => st.d = v, min: D_MIN, max: D_MAX, onchange: update });
+bindSeg($('#fuSeg'), () => st.fu, v => { st.fu = v; update(); });
+bindSeg($('#luSeg'), () => st.lu, v => { st.lu = v; update(); });
+bindSeg($('#viewSeg'), () => st.view, v => { st.view = v; update(); });
+bindSeg($('#showSeg'), () => st.show, v => { st.show = v; update(); });
+bindPlay($('#play'));
+function fmtLen(m) { return st.lu === 'mil' ? fmt(m / 25.4e-6, 4) + ' mil' : fmtSI(m, 'm'); }
+
+const OUT = [
+  ['delta', 'Skin depth δ', true], ['ratio', 'Rac / Rdc (exact)'], ['x', 'a / δ'], ['rdc', 'Rdc per m'], ['rac', 'Rac per m'],
+  ['rs', 'Surface resistance Rs'], ['li', 'Internal L per m'], ['ap', 'Thin-skin approx.'],
+];
+$('#out').innerHTML = OUT.map(([k, l, big]) => `<div class="${big ? 'big' : ''}"><span>${l}</span><b id="o-${k}"></b></div>`).join('');
+
+// ---------- drawing: cross-section / slab ----------
+const cvA = $('#cvA'), cvB = $('#cvB');
+let off = document.createElement('canvas');
+function drawA(t) {
+  const { ctx, w, h } = fitCanvas(cvA), C = Theme.c; ctx.clearRect(0, 0, w, h);
+  const wt = 2 * Math.PI * 0.45 * t;           // display phase (slow, not the real frequency)
+  if (st.view === 'wire') {
+    const R = Math.min(w, h) * 0.42, cx = w / 2, cy = h / 2;
+    const S2 = Math.max(64, Math.min(520, Math.round(2 * R * Math.min(2, window.devicePixelRatio || 1))));
+    off.width = off.height = S2;
+    const o = off.getContext('2d'), img = o.createImageData(S2, S2), px = img.data;
+    const half = S2 / 2;
+    for (let j = 0; j < S2; j++) for (let i = 0; i < S2; i++) {
+      const dx = (i + 0.5 - half) / half, dy = (j + 0.5 - half) / half, r = Math.hypot(dx, dy), p = (j * S2 + i) * 4;
+      if (r > 1) { px[p + 3] = 0; continue; }
+      const L = lutAt((1 - r) * D.x);
+      const c = st.show === 'mag' ? seqRgb(L.mag) : divRgb(L.mag * Math.cos(L.ph + wt));
+      px[p] = c[0]; px[p + 1] = c[1]; px[p + 2] = c[2]; px[p + 3] = 255;
+    }
+    o.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = true; ctx.drawImage(off, cx - R, cy - R, 2 * R, 2 * R);
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 2 * Math.PI); ctx.stroke();
+    if (D.delta < D.a) {
+      const rd = R * (1 - D.delta / D.a);
+      ctx.setLineDash([5, 4]); ctx.strokeStyle = C.ink; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, rd, 0, 2 * Math.PI); ctx.stroke(); ctx.setLineDash([]);
+      if (R - rd > 14) { ctx.fillStyle = C.ink; ctx.font = `600 12px ${C.mono}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('δ', cx, cy - (R + rd) / 2); }
+    }
+    // dimension: diameter
+    ctx.fillStyle = C.muted; ctx.font = `500 11px ${C.mono}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('d = ' + fmtLen(st.d), cx, cy + R + Math.min(22, (h - 2 * R) / 2 - 2));
+    ctx.textAlign = 'left'; ctx.fillText(st.show === 'mag' ? '|J| / |J(a)|' : 'J(t) · current along the wire', 10, 16);
+  } else {
+    // flat conductor: surface at top, depth 0..6 delta downward; current flows left-right
+    const top = 34, bot = h - 14, L = 6, left = 14, right = w - 14;
+    ctx.fillStyle = C.muted; ctx.font = `500 11px ${C.mono}`; ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+    ctx.fillText('air', left, top - 10);
+    for (let yy = top; yy < bot; yy++) {
+      const z = (yy - top) / (bot - top) * L, mag = Math.exp(-z), v = mag * Math.cos(wt - z);
+      const c = st.show === 'mag' ? seqRgb(mag) : divRgb(v);
+      ctx.fillStyle = rgbStr(c); ctx.fillRect(left, yy, right - left, 1.2);
+    }
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(left, top); ctx.lineTo(right, top); ctx.stroke();
+    // delta ticks
+    ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
+    for (let k = 1; k < L; k++) { const y = top + k / L * (bot - top); ctx.strokeStyle = rgbStr(Theme.c.rgb.ink, 0.35); ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke(); }
+    ctx.setLineDash([]);
+    ctx.fillStyle = C.ink; ctx.textAlign = 'right';
+    for (let k = 1; k < L; k++) { const y = top + k / L * (bot - top); ctx.fillText(k + 'δ', right - 4, y - 4); }
+    // current arrows (instantaneous)
+    ctx.strokeStyle = C.ink; ctx.fillStyle = C.ink; ctx.lineWidth = 1.6;
+    const cols = Math.max(2, Math.floor((right - left - 40) / 120)), amp = Math.min(54, (right - left) / (cols * 2.4));
+    for (let k = 0; k < 14; k++) {
+      const z = (k + 0.5) * L / 14 * 0.75, y = top + z / L * (bot - top), v = Math.exp(-z) * Math.cos(wt - z);
+      for (let c = 0; c < cols; c++) { const x0 = left + 24 + (c + 0.5) * (right - left - 48) / cols; if (Math.abs(v) * amp > 2) arrow(ctx, x0 - v * amp / 2, y, x0 + v * amp / 2, y, 6); }
+    }
+    ctx.fillStyle = C.muted; ctx.textAlign = 'left'; ctx.fillText('δ = ' + fmtLen(D.delta), left + 34, top - 10);
+  }
+}
+
+// ---------- drawing: profile ----------
+function drawB(t) {
+  const C = Theme.c, wt = 2 * Math.PI * 0.45 * t;
+  if (st.view === 'wire') {
+    const mag = [], inst = [], neg = [];
+    // samples: dense in depth near both surfaces, plus uniform
+    const us = D.lut.map(e => e.u).filter(u => u <= D.x);
+    const rs = new Set();
+    for (const u of us) { rs.add(1 - u / D.x); }
+    for (let i = 0; i <= 200; i++) rs.add(i / 200);
+    const arr = Array.from(rs).filter(r => r >= 0 && r <= 1).sort((a, b) => a - b);
+    const full = arr.slice().reverse().map(r => -r).concat(arr);
+    for (const r of full) {
+      const L = lutAt((1 - Math.abs(r)) * D.x);
+      mag.push([r, L.mag]); neg.push([r, -L.mag]); inst.push([r, L.mag * Math.cos(L.ph + wt)]);
+    }
+    const series = st.show === 'mag'
+      ? [{ pts: mag, color: C.ink, width: 2.2 }]
+      : [{ pts: mag, color: C.muted, width: 1.2, dash: [4, 3] }, { pts: neg, color: C.muted, width: 1.2, dash: [4, 3] }, { pts: inst, color: C.field, width: 2.4 }];
+    const vl = D.delta < D.a ? [{ x: -(1 - D.delta / D.a), color: C.muted, label: 'δ' }, { x: 1 - D.delta / D.a, color: C.muted, label: 'δ', }] : [];
+    drawPlot(cvB, { x: { min: -1, max: 1, label: 'r / a (across a diameter)', fmt: v => fmt(v, 2) }, y: { min: st.show === 'mag' ? 0 : -1.05, max: 1.05, label: st.show === 'mag' ? '|J| / |J(a)|' : 'J / |J(a)|' }, series, vlines: vl });
+  } else {
+    const mag = [], inst = [], neg = [];
+    for (let i = 0; i <= 300; i++) { const z = i / 300 * 6; mag.push([z, Math.exp(-z)]); neg.push([z, -Math.exp(-z)]); inst.push([z, Math.exp(-z) * Math.cos(wt - z)]); }
+    const series = st.show === 'mag' ? [{ pts: mag, color: C.ink, width: 2.2 }] : [{ pts: mag, color: C.muted, width: 1.2, dash: [4, 3] }, { pts: neg, color: C.muted, width: 1.2, dash: [4, 3] }, { pts: inst, color: C.field, width: 2.4 }];
+    drawPlot(cvB, { x: { min: 0, max: 6, label: 'depth z / δ' }, y: { min: st.show === 'mag' ? 0 : -1.05, max: 1.05, label: st.show === 'mag' ? '|J| / |J(0)|' : 'J / |J(0)|' }, series,
+      points: [{ x: 1, y: Math.exp(-1), color: C.ink, label: '37% at 1δ' }, { x: 3, y: Math.exp(-3), color: C.ink, label: '5% at 3δ' }] });
+  }
+}
+
+// ---------- plots ----------
+function drawPlots() {
+  const C = Theme.c, a = D.a;
+  const ex = [], s1 = [], s2 = [];
+  for (let i = 0; i <= 240; i++) {
+    const f = F_MIN * Math.pow(F_MAX / F_MIN, i / 240), x = a / S.skinDepth(st.rho, f, st.mur);
+    ex.push([f, S.racRdc(x)]); s1.push([f, S.approx.surface(x)]); s2.push([f, S.approx.surfacePlusQuarter(x)]);
+  }
+  const ymax = Math.max(10, ex[ex.length - 1][1] * 1.3);
+  const fT = st.rho / (Math.PI * S.MU0 * st.mur * a * a);    // delta = a
+  drawPlot($('#pR'), { x: { min: F_MIN, max: F_MAX, log: true, label: 'frequency (Hz)', fmt: v => fmtSI(v, '').replace(' ', '') }, y: { min: 0.9, max: ymax, log: true, label: 'Rac / Rdc' },
+    series: [{ pts: s1, color: C.muted, width: 1.4, dash: [5, 4] }, { pts: s2, color: C.hfield, width: 1.4, dash: [2, 3] }, { pts: ex, color: C.ink, width: 2.4 }],
+    vlines: [{ x: fT, color: C.muted, label: 'δ = a', ly: 10 }],
+    points: [{ x: st.f, y: D.Z[0], color: C.field, label: fmt(D.Z[0], 3) }] });
+  $('#lgR').innerHTML = `<span><i style="color:${C.ink}"></i>exact (Bessel)</span><span><i class="dash" style="color:${C.muted}"></i>a / 2δ</span><span><i class="dash" style="color:${C.hfield}"></i>a / 2δ + 1/4</span>`;
+  const ser = [];
+  for (const [k, m] of Object.entries(MATS)) {
+    const pts = []; for (let i = 0; i <= 60; i++) { const f = F_MIN * Math.pow(F_MAX / F_MIN, i / 60); pts.push([f, S.skinDepth(m.rho, f, m.mur)]); }
+    ser.push({ pts, color: C.muted, width: 1, dash: k === 'steel' ? [3, 3] : [] });
+  }
+  const cur = []; for (let i = 0; i <= 60; i++) { const f = F_MIN * Math.pow(F_MAX / F_MIN, i / 60); cur.push([f, S.skinDepth(st.rho, f, st.mur)]); }
+  ser.push({ pts: cur, color: C.ink, width: 2.4 });
+  drawPlot($('#pD'), { x: { min: F_MIN, max: F_MAX, log: true, label: 'frequency (Hz)', fmt: v => fmtSI(v, '').replace(' ', '') }, y: { min: 1e-8, max: 0.1, log: true, label: 'δ (m)', fmt: v => fmtSI(v, 'm').replace(' ', '') },
+    series: ser, hlines: [{ y: a, color: C.field }], points: [{ x: st.f, y: D.delta, color: C.field, label: fmtLen(D.delta) }] });
+  $('#lgD').innerHTML = `<span><i style="color:${C.ink}"></i>${MATS[st.m] ? MATS[st.m].name : 'custom'}</span><span><i style="color:${C.muted}"></i>other presets (steel dashed)</span><span><i class="dash" style="color:${C.field}"></i>wire radius a</span>`;
+}
+
+// ---------- check table ----------
+function kelvinRatio(q) {        // independent route: Kelvin functions by series (A&S 9.9.10)
+  let ber = 0, bei = 0, berp = 0, beip = 0;
+  const h = q / 2;
+  for (let k = 0; k < 60; k++) {
+    let f2 = 1; for (let i = 2; i <= 2 * k; i++) f2 *= i;           // (2k)!
+    const f21 = f2 * (2 * k + 1);                                   // (2k+1)!
+    const s = (k % 2) ? -1 : 1;
+    ber += s * Math.pow(h, 4 * k) / (f2 * f2);
+    bei += s * Math.pow(h, 4 * k + 2) / (f21 * f21);
+    if (k > 0) berp += s * 4 * k * Math.pow(h, 4 * k - 1) / (f2 * f2) / 2;
+    beip += s * (4 * k + 2) * Math.pow(h, 4 * k + 1) / (f21 * f21) / 2;
+  }
+  return (q / 2) * (ber * beip - bei * berp) / (berp * berp + beip * beip);
+}
+const TABLE = [[1, 1.005], [2, 1.078], [3, 1.318], [4, 1.678], [5, 2.043], [7, 2.743], [10, 3.799], [20, 7.328], [50, null], [100, null]];
+function fillCheck() {
+  let rows = '<thead><tr><th>q</th><th>this page</th><th>ber/bei</th><th>table / asympt.</th><th>Δ</th><th></th></tr></thead><tbody>';
+  for (const [q, ref] of TABLE) {
+    const x = q / Math.SQRT2, ex = S.racRdc(x), kv = q <= 20 ? kelvinRatio(q) : NaN;
+    const r = ref !== null ? ref : x / 2 + 0.25 + 3 / (32 * x);
+    const d = Math.abs(ex - r), tol = ref !== null ? 6e-4 : 2e-3 * r, ok = d <= tol && (isNaN(kv) || Math.abs(kv - ex) < 1e-6 * ex);
+    rows += `<tr><td>${q}</td><td>${ex.toFixed(4)}</td><td>${isNaN(kv) ? '—' : kv.toFixed(4)}</td><td>${ref !== null ? ref.toFixed(3) : r.toFixed(3) + '*'}</td><td>${d.toExponential(1)}</td><td class="${ok ? 'pass' : 'fail'}">${ok ? 'pass' : 'fail'}</td></tr>`;
+  }
+  $('#refTable').innerHTML = rows + '</tbody>';
+}
+
+// ---------- update ----------
+function update() {
+  derive();
+  $('#stage').classList.toggle('flat', st.view === 'flat');
+  $('#fU').textContent = st.fu; $('#dU').textContent = st.lu;
+  refreshFields();
+  const C = Theme.c;
+  $('#o-delta').textContent = fmtLen(D.delta);
+  $('#o-ratio').textContent = fmt(D.Z[0], 4);
+  $('#o-x').textContent = fmt(D.x, 4);
+  $('#o-rdc').textContent = fmtSI(D.Rdc, 'Ω');
+  $('#o-rac').textContent = fmtSI(D.Rac, 'Ω');
+  $('#o-rs').textContent = fmtSI(D.Rs, 'Ω/sq');
+  $('#o-li').textContent = fmtSI(D.Li, 'H');
+  const ap = S.approx.surfacePlusQuarter(D.x);
+  $('#o-ap').innerHTML = D.x > 1 ? `${fmt(ap, 4)} <small>(${fmt(100 * (ap / D.Z[0] - 1), 2)}%)</small>` : `— <small>(δ > a)</small>`;
+  $('#legend').innerHTML = st.show === 'mag'
+    ? `<span>|J|</span><span class="ramp" style="background:${rampCss('seq')}"></span><span>0 → surface value</span>`
+    : `<span>J(t)</span><span class="ramp" style="background:${rampCss('div')}"></span><span>− · 0 · +  (phase animated, slowed down)</span>`;
+  let cap;
+  if (st.view === 'wire') {
+    if (D.x < 0.5) cap = `δ is ${fmt(1 / D.x, 3)}× the radius. Current fills the wire almost evenly.`;
+    else if (D.x < 3) cap = `δ is comparable to the radius. Current starts to leave the center.`;
+    else if (2 * D.a / D.delta * 1 > 400) cap = `δ is ${fmt(D.delta / D.a * 100, 2)}% of the radius: the skin is thinner than a pixel here. The flat view shows its depth profile.`;
+    else cap = `The current lives in a skin about ${fmtLen(D.delta)} deep. The center carries almost nothing, and lags in phase.`;
+  } else cap = `|J| falls to 37% at one skin depth (${fmtLen(D.delta)}). The phase lags by one radian per δ, so the current wave travels into the metal.`;
+  $('#caption').textContent = cap;
+  cvA.setAttribute('aria-label', `Cross-section colored by current density. Skin depth ${fmtLen(D.delta)}, a over delta ${fmt(D.x, 3)}.`);
+  drawA(Clock.t); drawB(Clock.t); drawPlots();
+  Hash.write({ v: st.view, show: st.show, f: st.f, d: st.d, m: st.m, rho: st.rho, mur: st.mur, lu: st.lu, fu: st.fu });
+}
+Clock.on(t => { drawA(t); if (st.show === 't') drawB(t); });
+Theme.on(update);
+onResize(cvA, () => { drawA(Clock.t); drawB(Clock.t); });
+onResize($('#pR'), drawPlots);
+fillCheck();
+update();
+</script>
+</body>
+</html>
